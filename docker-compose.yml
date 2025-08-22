@@ -1,0 +1,37 @@
+services:
+  app-image:                # servicio “builder” (no se ejecuta)
+    build: .
+    image: proyectosjg:local
+    entrypoint: ["true"]    # no hace nada al arrancar
+  etl:
+    image: proyectosjg:local
+    env_file: .env
+    command: ["scouting-etl", "--skip-fotmob", "--skip-tm", "--skip-merge"]
+    volumes:
+      - ./data:/data
+      - ./src:/app/src:ro  
+    depends_on:
+      - app-image
+  bot:
+    image: proyectosjg:local
+    env_file: .env
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - OPENAI_MODEL_SUPERVISOR=${OPENAI_MODEL_SUPERVISOR:-gpt-4o-mini}
+      - INDICES_DIR=/data/processed/indices/current
+      - TRANSFORMERS_CACHE=/models_cache
+      - HF_HOME=/models_cache
+      - KAL_CHROME_PATH=/usr/bin/google-chrome-stable
+    volumes:
+      - ./data:/data
+      - ./src:/app/src:ro     
+      - models_cache:/models_cache
+    command: ["scouting-bot"]
+    restart: unless-stopped
+    depends_on:
+      - app-image
+
+volumes:
+  models_cache:
+

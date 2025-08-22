@@ -1,0 +1,16 @@
+# Data y artefactos
+data/
+__pycache__/
+*.pyc
+
+# Entornos / IDE
+.venv/
+env/
+*.env
+*.log
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore

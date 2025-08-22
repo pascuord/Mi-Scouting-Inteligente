@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "proyectosjg"
+version = "0.1.0"
+description = "Scouting pipeline ProyectosJG"
+requires-python = ">=3.10"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+scouting-etl = "scouting.etl.main_etl:cli"          # si tu main_etl tiene una función cli(); si no, lo ajustamos ahora
+scouting-bot = "scouting.telegram_entry:main"

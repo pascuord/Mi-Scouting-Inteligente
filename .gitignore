@@ -1,0 +1,12 @@
+# Datos y artefactos
+data/
+__pycache__/
+*.pyc
+*.log
+
+# Entornos / IDE / secretos
+.venv/
+env/
+.env
+.vscode/
+.idea/

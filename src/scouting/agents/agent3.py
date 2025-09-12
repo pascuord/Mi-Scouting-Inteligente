@@ -8,10 +8,16 @@ system_prompt = (
     "Eres un asistente experto en análisis futbolístico dentro de un sistema de scouting inteligente. "
     "Tu rol es analizar y justificar por qué los jugadores seleccionados encajan con una consulta hecha por un club. "
     "Estos jugadores han sido seleccionados por distintos agentes del sistema y representan las mejores opciones disponibles "
-    "según la query proporcionada. Redacta un análisis profesional y constructivo en español claro y natural. "
+    "según la query proporcionada. Redacta un análisis profesional y constructivo en {lang} claro y natural, sin tecnicismos innecesarios ni expresiones forzadas. "
     "Para cada jugador, comenta edad, posición, minutos jugados, pie, altura, valor, contrato restante y score. "
-    "Justifica por qué encaja usando métricas clave (valor, percentil y peso) y valora per90 si ha jugado pocos minutos. "
+    "Justifica por qué encaja usando métricas clave (percentil, percentil por 90 y peso métrica) y valora más percentil por 90 si ha jugado pocos minutos (<750).  "
+    "Interpreta correctamente las métricas con nombre negativo (p.ej., Dispossessed, Dribbled past, Fouls committed): pese a su nombre, un percentil ALTO implica menos pérdidas/regates sufridos/faltas, lo cual es positivo; "
+    "un percentil BAJO en ellas indica debilidad y no debe presentarse como fortaleza. "
+    "Contrato: menos años = mayor facilidad de incorporación inmediata (posible coste inferior al valor). Contrato largo = encaje a largo plazo y potencial coste alto. "
+    "Si el jugador no es de la posición objetivo de la query pero ha actuado ahí (Posiciones secundarias), indícalo y advierte que sus percentiles se comparan con su posición principal pero que podría ser interesante."
+    "En caso de que no coincidan {{liga}} y {{liga_stats}} puedes indicar algo así como: Actualmente en {{liga}}, pero las estadísticas provienen de {{liga_stats}} {{temporada_stats}}"
     "Si hay rasgos ≥75, destácalos como fortalezas. No inventes datos: si falta algo, omítelo. "
+    "Regla estricta: NO reasignes la posición. Usa exactamente el campo 'Posición'. Si la posición principal no coincide con la buscada (p.ej., extremos), dilo explícitamente y no etiquetes al jugador como tal; explica su encaje potencial y advierte que los percentiles se comparan con su demarcación principal."
     "Evita frases negativas; aporta lectura útil y positiva para el club."
 )
 
@@ -22,7 +28,7 @@ Query: "Busco un defensa central joven y barato"
 
 Jugadores seleccionados:
 
-Nombre: Joaquín Martín
+Nombre: Joaquín Martín | Nacionalidad: España
 Edad: 21 años | Posición: Centre-Back | Posiciones secundarias: Left-Back
 Pie dominante: Left | Altura: 1,84 m | Valor: €500K | Contrato: 1.0 años
 Minutos jugados: 620 | Score total: 66.2
@@ -39,6 +45,32 @@ Rasgos destacados: Concentración (percentil 91), Acciones defensivas (percentil
 Según las necesidades de la query y las métricas clave, estos son nuestros 3 candidatos con mejor puntuación:
 
 **1. Joaquín Martín** (score: 66.2) sobresale como opción joven y coste asumible. A sus 21 años y con un valor de mercado de €500K, el horizonte contractual de 1 año abre una ventana de incorporación inmediata. Aunque acumula 620', sus percentiles por 90' son consistentes: despejes (72) y duelos aéreos (69) respaldan su perfil de central dominador en área propia. Su pie izquierdo y la experiencia puntual como lateral amplían recursos tácticos. Añade rasgos altos en concentración (p91) y acciones defensivas (p84), indicadores de solidez y margen de crecimiento.
+
+[Ejemplo de entrada]
+
+Query: "Portero sobrio, con buena salida por alto y que sepa distribuir bien el balón"
+
+Jugadores seleccionados:
+
+Nombre: Diego López  | Nacionalidad: España
+Edad: 24 años | Posición: Portero
+Pie dominante: Derecho | Altura: 1,90 m | Valor: €500K | Contrato: 1.5 años
+Minutos jugados: 520  |  análisis ponderado por 90' | Score total: 67.1
+Liga: Segunda División (nivel competitivo intermedio)
+Contrato: disponibilidad a medio plazo
+Métricas clave:
+- High claims: percentil 83 (percentil por 90: 68.2), peso 0.25
+- Accurate long balls: percentil 79 (percentil por 90: 73.4), peso 0.22
+- Save percentage: percentil 74, peso 0.20
+- Goals prevented: percentil 72, peso 0.18
+- Pass accuracy: percentil 61, peso 0.15
+Rasgos destacados: Seguridad por alto (percentil 82), Juego con los pies (percentil 79)
+
+[Salida esperada]
+
+Según los criterios de la búsqueda, estos son los tres porteros que mejor encajan:
+
+**1. Diego López** (score: 67.1) es un portero joven y sobrio que destaca especialmente en el juego aéreo y la distribución. A sus 24 años, y con un valor asequible de €500K, su contrato de 1.5 años ofrece una opción viable a medio plazo. Ha disputado 520 minutos esta temporada, por lo que el análisis principal se basa en sus datos por 90 minutos. En salidas por alto alcanza un percentil 83 (6.2 por partido), y en balones largos precisos, un percentil 79, confirmando su capacidad para distribuir desde atrás. Su porcentaje de paradas (p74) y goles evitados (p72) reflejan un rendimiento sólido bajo palos. Además, muestra buena precisión en el pase (p61). Tiene rasgos destacados en seguridad aérea y juego con los pies, que refuerzan su perfil como portero sobrio, fiable y con buena salida.
 """
 
 def _fmt_valor(valor_txt: str | None, valor_num: float | None = None) -> str:
@@ -72,10 +104,22 @@ def _fmt_linea_metricas(nombre_stat: str, datos: Dict[str, Any], prefer_per90: b
     return f"- {nombre_stat}: s/d, peso {peso:.3f}"
 
 class Agente3Explanation:
-    def __init__(self, model: str = "gpt-4o-mini"):
+    def __init__(self, model: str = "gpt-4o-mini", lang: str = "es"):
         # coge OPENAI_API_KEY del entorno (.env)
         self.client = OpenAI()
         self.model = model
+        self.lang = lang  # "es" | "en" | "fr" | "it" | "de" (del supervisor)
+
+        # Inyecta el idioma humano-legible en el system prompt:
+        lang_label = {
+            "en": "inglés",
+            "fr": "francés",
+            "it": "italiano",
+            "de": "alemán",
+            "es": "español",
+        }.get((lang or "es").lower(), "español")
+        self.system_prompt = system_prompt.format(lang=lang_label)
+
 
     def formatear_jugadores(self, resultados: List[Dict]) -> str:
         bloques=[]
@@ -87,10 +131,11 @@ class Agente3Explanation:
             pos_princ = res.get("main_position"); pos_sec = ", ".join(res.get("other_positions",[]) or [])
             anios_contrato = res.get("años_contrato"); min_jugados = res.get("minutes_real")
             liga = res.get("liga"); nivel_liga = res.get("nivel_liga")
+            liga_stats = res.get("liga_stats"); temporada_stats = res.get("temporada_stats")
 
             contrato_txt = ""
             if anios_contrato is not None:
-                if anios_contrato <= 1.0: contrato_txt = "ventana de incorporación inmediata"
+                if anios_contrato <= 1.0: contrato_txt = "ventana de incorporación inmediata y posible coste por debajo del valor"
                 elif anios_contrato <= 2.5: contrato_txt = "disponibilidad a medio plazo"
                 else: contrato_txt = "vinculación larga (negociación potencialmente costosa)"
 
@@ -117,13 +162,14 @@ class Agente3Explanation:
                 f"{' | Posiciones secundarias: ' + pos_sec if pos_sec else ''}\n"
                 f"Pie dominante: {pie} | Altura: {altura} | Valor: {valor}"
                 f"{f' | Contrato: {anios_contrato} años' if anios_contrato is not None else ''}\n"
-                f"Minutos jugados: {min_jugados if min_jugados is not None else '-'}"
+                f"Minutos jugados: {min_jugados if min_jugados is not None else '-'} en {liga_stats} {temporada_stats} ({nivel_liga})"
                 + ("  |  análisis ponderado por 90'" if prefer_per90 else "")
                 + f" | Score total: {score}\n"
-                f"Liga: {liga} ({nivel_liga})\n"
+                f"Liga actual: {liga} \n"
                 f"Contrato: {contrato_txt}\n"
                 f"Métricas clave:\n{metricas_txt}"
             )
+            
             if rasgos_destacados:
                 bloque += f"\nRasgos destacados: {rasgos_txt}"
             bloques.append(bloque)
@@ -136,17 +182,18 @@ class Agente3Explanation:
             f"Query: {query}\n\n"
             f"Jugadores seleccionados:\n\n"
             f"{jugadores_txt}\n\n"
-            "Genera una explicación profesional destacando los aspectos positivos de cada jugador dentro del contexto de la búsqueda. "
-            "Recuerda que son los mejores candidatos tras los filtros aplicados, y que los percentiles por 90 y rasgos deben valorarse especialmente si han jugado pocos minutos."
+            f"Genera la explicación en {self.lang}. "
+            "Debe ser profesional destacando los aspectos positivos de cada jugador dentro del contexto de la búsqueda. "
+            "Recuerda que son los mejores candidatos tras los filtros aplicados, que los percentiles por 90 deben valorarse especialmente si han jugado pocos minutos (<750) y deben mencionarse como cualidades destacadas los rasgos que superen el valor de percentil 75."
         )
         resp = self.client.chat.completions.create(
             model=self.model,
             messages=[
-                {"role":"system","content":system_prompt},
+                {"role":"system","content":self.system_prompt},
                 {"role":"user","content":few_shot_example},
                 {"role":"user","content":user_prompt},
             ],
-            temperature=0.5,
-            max_tokens=1200,
+            temperature=0.35,
+            max_tokens=1500,
         )
         return resp.choices[0].message.content.strip()

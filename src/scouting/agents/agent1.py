@@ -4,8 +4,406 @@ import json, re, datetime, unicodedata
 import polars as pl
 from typing import Tuple, Literal, List, Dict, Any
 
+
+# --- Normalización países / gentilicios / ligas ---
+
+ALIAS_TO_NACIONALIDAD = {
+  "afghanistan": "Afghanistan",
+  "albania": "Albania",
+  "alemania": "Alemania",
+  "angola": "Angola",
+  "antigua y barbuda": "Antigua y Barbuda",
+  "arabia saudi": "Arabia Saudí",
+  "argelia": "Argelia",
+  "argentina": "Argentina",
+  "armenia": "Armenia",
+  "australia": "Australia",
+  "austria": "Austria",
+  "azerbaiyan": "Azerbaiyán",
+  "banglades": "Bangladés",
+  "barbados": "Barbados",
+  "benin": "Benín",
+  "bermudas": "Bermudas",
+  "bielorrusia": "Bielorrusia",
+  "bolivia": "Bolivia",
+  "bosnia-herzegovina": "Bosnia-Herzegovina",
+  "brasil": "Brasil",
+  "bulgaria": "Bulgaria",
+  "burkina faso": "Burkina Faso",
+  "burundi": "Burundi",
+  "belgica": "Bélgica",
+  "cabo verde": "Cabo Verde",
+  "camerun": "Camerún",
+  "canada": "Canadá",
+  "chad": "Chad",
+  "chequia": "Chequia",
+  "chile": "Chile",
+  "china": "China",
+  "chipre": "Chipre",
+  "colombia": "Colombia",
+  "comoros": "Comoros",
+  "congo": "Congo",
+  "corea del sur": "Corea del Sur",
+  "costa rica": "Costa Rica",
+  "croacia": "Croacia",
+  "cuba": "Cuba",
+  "curazao": "Curazao",
+  "cote d’ivoire": "Côte d’Ivoire",
+  "dr congo": "DR Congo",
+  "dinamarca": "Dinamarca",
+  "ecuador": "Ecuador",
+  "egipto": "Egipto",
+  "el salvador": "El Salvador",
+  "emiratos arabes unidos": "Emiratos Árabes Unidos",
+  "eritrea": "Eritrea",
+  "escocia": "Escocia",
+  "eslovaquia": "Eslovaquia",
+  "eslovenia": "Eslovenia",
+  "espana": "España",
+  "estados unidos": "Estados Unidos",
+  "estonia": "Estonia",
+  "etiopia": "Etiopía",
+  "filipinas": "Filipinas",
+  "finlandia": "Finlandia",
+  "francia": "Francia",
+  "guf": "GUF",
+  "gabon": "Gabón",
+  "gales": "Gales",
+  "gambia": "Gambia",
+  "georgia": "Georgia",
+  "ghana": "Ghana",
+  "gibraltar": "Gibraltar",
+  "granada": "Granada",
+  "grecia": "Grecia",
+  "guadalupe": "Guadalupe",
+  "guatemala": "Guatemala",
+  "guinea": "Guinea",
+  "guinea ecuatorial": "Guinea Ecuatorial",
+  "guinea-bissau": "Guinea-Bissau",
+  "guyana": "Guyana",
+  "haiti": "Haití",
+  "honduras": "Honduras",
+  "hungria": "Hungría",
+  "india": "India",
+  "indonesia": "Indonesia",
+  "inglaterra": "Inglaterra",
+  "irak": "Irak",
+  "irlanda": "Irlanda",
+  "irlanda del norte": "Irlanda del Norte",
+  "iran": "Irán",
+  "islandia": "Islandia",
+  "islas feroe": "Islas Feroe",
+  "israel": "Israel",
+  "italia": "Italia",
+  "jamaica": "Jamaica",
+  "japon": "Japón",
+  "jordania": "Jordania",
+  "kazajistan": "Kazajistán",
+  "kenia": "Kenia",
+  "kosovo": "Kosovo",
+  "letonia": "Letonia",
+  "liberia": "Liberia",
+  "libia": "Libia",
+  "lituania": "Lituania",
+  "luxemburgo": "Luxemburgo",
+  "libano": "Líbano",
+  "macedonia del norte": "Macedonia del Norte",
+  "madagascar": "Madagascar",
+  "malasia": "Malasia",
+  "malaui": "Malaui",
+  "mali": "Mali",
+  "malta": "Malta",
+  "marruecos": "Marruecos",
+  "martinica": "Martinica",
+  "mauricio": "Mauricio",
+  "mauritania": "Mauritania",
+  "moldavia": "Moldavia",
+  "montenegro": "Montenegro",
+  "montserrat": "Montserrat",
+  "mozambique": "Mozambique",
+  "mexico": "México",
+  "namibia": "Namibia",
+  "nepal": "Nepal",
+  "nicaragua": "Nicaragua",
+  "nigeria": "Nigeria",
+  "noruega": "Noruega",
+  "nueva zelanda": "Nueva Zelanda",
+  "niger": "Níger",
+  "palestina": "Palestina",
+  "panama": "Panamá",
+  "paraguay": "Paraguay",
+  "paises bajos": "Países Bajos",
+  "peru": "Perú",
+  "polonia": "Polonia",
+  "portugal": "Portugal",
+  "puerto rico": "Puerto Rico",
+  "rae de hong kong (china)": "RAE de Hong Kong (China)",
+  "republica centroafricana": "República Centroafricana",
+  "republica dominicana": "República Dominicana",
+  "ruanda": "Ruanda",
+  "rumania": "Rumanía",
+  "rusia": "Rusia",
+  "smt": "SMT",
+  "stl": "STL",
+  "saint lucia": "Saint Lucia",
+  "san cristobal y nieves": "San Cristóbal y Nieves",
+  "san vicente y las granadinas": "San Vicente y las Granadinas",
+  "senegal": "Senegal",
+  "serbia": "Serbia",
+  "sierra leona": "Sierra Leona",
+  "singapur": "Singapur",
+  "siria": "Siria",
+  "somalia": "Somalia",
+  "sri lanka": "Sri Lanka",
+  "sudan": "Sudan",
+  "sudafrica": "Sudáfrica",
+  "suecia": "Suecia",
+  "suiza": "Suiza",
+  "surinam": "Surinam",
+  "tai": "TAI",
+  "tailandia": "Tailandia",
+  "tanzania": "Tanzania",
+  "togo": "Togo",
+  "trinidad y tobago": "Trinidad y Tobago",
+  "turquia": "Turquía",
+  "tunez": "Túnez",
+  "ucrania": "Ucrania",
+  "uganda": "Uganda",
+  "uruguay": "Uruguay",
+  "uzbekistan": "Uzbekistán",
+  "vanuatu": "Vanuatu",
+  "venezuela": "Venezuela",
+  "zambia": "Zambia",
+  "zimbabue": "Zimbabue",
+  "espanol": "España",
+  "espanoles": "España",
+  "spanish": "España",
+  "frances": "Francia",
+  "franceses": "Francia",
+  "french": "Francia",
+  "ingles": "Inglaterra",
+  "ingleses": "Inglaterra",
+  "britanico": "Inglaterra",
+  "britanicos": "Inglaterra",
+  "aleman": "Alemania",
+  "alemanes": "Alemania",
+  "german": "Alemania",
+  "argentino": "Argentina",
+  "argentinos": "Argentina",
+  "brasileno": "Brasil",
+  "brasilenos": "Brasil",
+  "brasileño": "Brasil",
+  "brasileños": "Brasil",
+  "italiano": "Italia",
+  "italianos": "Italia",
+  "portugues": "Portugal",
+  "portugueses": "Portugal",
+  "marroqui": "Marruecos",
+  "marroquí": "Marruecos",
+  "mexicano": "México",
+  "mexicanos": "México",
+  "uruguayo": "Uruguay",
+  "uruguayos": "Uruguay",
+  "usa": "Estados Unidos",
+  "eeuu": "Estados Unidos",
+  "estadounidense": "Estados Unidos",
+  "holanda": "Países Bajos",
+  "holandes": "Países Bajos",
+  "holandeses": "Países Bajos",
+  "neerlandes": "Países Bajos",
+  "neerlandeses": "Países Bajos"
+}
+
+LEAGUE_SYNONYMS = {
+    # España
+    "laliga": "LaLiga", "la liga": "LaLiga", "liga española": "LaLiga",
+    "laliga2": "LaLiga2", "la liga 2": "LaLiga2", "segunda division": "LaLiga2",
+
+    # Alemania
+    "bundesliga": "Bundesliga", "liga alemana": "Bundesliga",
+    "2. bundesliga": "2. Bundesliga", "segunda alemana": "2. Bundesliga",
+    "3. liga": "3. Liga", "tercera alemana": "3. Liga",
+
+    # Arabia Saudi
+    "saudi pro league": "Saudi Pro League", "liga saudita": "Saudi Pro League", "liga arabia": "Saudi Pro League",
+
+    # Argentina
+    "liga profesional": "Liga Profesional", "liga argentina": "Liga Profesional",
+
+    # Australia
+    "a-league": "A-League", "a league": "A-League", "liga australiana": "A-League",
+
+    # Austria
+    "bundesliga austria": "Bundesliga (Austria)", "liga austriaca": "Bundesliga (Austria)",
+
+    # Bélgica
+    "first division a": "First Division A", "liga belga": "First Division A",
+
+    # Brasil
+    "serie a brasil": "Serie A (Brasil)", "liga brasilena": "Serie A (Brasil)", "liga brasileña": "Serie A (Brasil)",
+    "serie b brasil": "Serie B (Brasil)",
+
+    # Canada
+    "premier league canada": "Premier League (Canada)", "liga canadiense": "Premier League (Canada)",
+
+    # Chile
+    "primera division chile": "Primera Division (Chile)", "liga chilena": "Primera Division (Chile)",
+
+    # China
+    "super league china": "Super League (China)", "liga china": "Super League (China)",
+
+    # Colombia
+    "primera a colombia": "Primera A (Colombia)", "liga colombiana": "Primera A (Colombia)",
+
+    # Corea del Sur
+    "k league 1": "K League 1(Corea del Sur)", "k league 2": "K League 2 (Corea del Sur)", "liga coreana": "K League 1(Corea del Sur)",
+
+    # Croacia
+    "hnl": "HNL (Croacia)", "liga croata": "HNL (Croacia)",
+
+    # Dinamarca
+    "1. division dinamarca": "1. Division (Dinamarca)", "liga danesa": "1. Division (Dinamarca)",
+
+    # Egipto
+    "premier league egipto": "Premier League (Egipto)", "liga egipcia": "Premier League (Egipto)",
+
+    # Escocia
+    "premiership escocia": "Premiership (Escocia)", "liga escocesa": "Premiership (Escocia)",
+    "championship escocia": "Championship (Escocia)",
+
+    # USA
+    "mls": "MLS", "major league soccer": "MLS", "liga estadounidense": "MLS",
+    "usl championship": "USL Championship",
+
+    # Finlandia
+    "veikkausliiga": "Veikkausliiga", "liga finlandesa": "Veikkausliiga",
+
+    # Francia
+    "ligue1": "Ligue 1", "ligue 1": "Ligue 1", "liga francesa": "Ligue 1",
+    "ligue2": "Ligue 2", "ligue 2": "Ligue 2",
+
+    # Grecia
+    "super league grecia": "Super League 1 (Grecia)", "liga griega": "Super League 1 (Grecia)",
+
+    # India
+    "indian super league": "Indian Super League", "liga india": "Indian Super League",
+
+    # Inglaterra
+    "premier league": "Premier League", "liga inglesa": "Premier League",
+    "championship": "Championship",
+    "league one": "League One", "league two": "League Two",
+
+    # Irlanda
+    "premier division irlanda": "Premier Division (Irlanda)", "liga irlandesa": "Premier Division (Irlanda)",
+
+    # Islandia
+    "besta deildin": "Besta deildin", "liga islandesa": "Besta deildin",
+
+    # Italia
+    "serie a": "Serie A", "liga italiana": "Serie A",
+    "serie b": "Serie B",
+
+    # Japon
+    "j league": "J. League (Japón)", "liga japonesa": "J. League (Japón)",
+
+    # Mexico
+    "liga mx": "Liga MX (Mexico)", "liga mexicana": "Liga MX (Mexico)",
+
+    # Noruega
+    "eliteserien": "Eliteserien", "liga noruega": "Eliteserien",
+
+    # Holanda
+    "eredivisie": "Eredivisie", "liga holandesa": "Eredivisie", "liga neerlandesa": "Eredivisie",
+    "eerste divisie": "Eerste Divisie",
+
+    # Polonia
+    "ekstraklasa": "Ekstraklasa", "liga polaca": "Ekstraklasa",
+
+    # Portugal
+    "liga portugal": "Liga Portugal", "liga portuguesa": "Liga Portugal",
+
+    # Rusia
+    "premier league rusia": "Premier League (Rusia)", "liga rusa": "Premier League (Rusia)",
+
+    # Suecia
+    "allsvenskan": "Allsvenskan", "liga sueca": "Allsvenskan",
+
+    # Suiza
+    "super league suiza": "Super League (Suiza)", "liga suiza": "Super League (Suiza)",
+    "challenge league suiza": "Challenge League (Suiza)",
+
+    # Thailandia
+    "thai league": "Thai League", "liga tailandesa": "Thai League",
+
+    # Turquia
+    "super lig": "Super Lig (Turquía)", "liga turca": "Super Lig (Turquía)",
+}
+
+# Mapa liga -> país canon
+LEAGUE_TO_COUNTRY = {
+    "LaLiga": "espana", "LaLiga2": "espana",
+    "Bundesliga": "alemania", "2. Bundesliga": "alemania", "3. Liga": "alemania",
+    "Saudi Pro League": "arabia saudi",
+    "Liga Profesional": "argentina",
+    "A-League": "australia",
+    "Bundesliga (Austria)": "austria",
+    "First Division A": "belgica",
+    "Serie A (Brasil)": "brasil", "Serie B (Brasil)": "brasil",
+    "Premier League (Canada)": "canada",
+    "Primera Division (Chile)": "chile",
+    "Super League (China)": "china",
+    "Primera A (Colombia)": "colombia",
+    "K League 1(Corea del Sur)": "corea del sur", "K League 2 (Corea del Sur)": "corea del sur",
+    "HNL (Croacia)": "croacia",
+    "1. Division (Dinamarca)": "dinamarca",
+    "Premier League (Egipto)": "egipto",
+    "Premiership (Escocia)": "escocia", "Championship (Escocia)": "escocia",
+    "MLS": "usa", "USL Championship": "usa",
+    "Veikkausliiga": "finlandia",
+    "Ligue 1": "francia", "Ligue 2": "francia",
+    "Super League 1 (Grecia)": "grecia",
+    "Indian Super League": "india",
+    "Premier League": "inglaterra", "Championship": "inglaterra", "League One": "inglaterra", "League Two": "inglaterra",
+    "Premier Division (Irlanda)": "irlanda",
+    "Besta deildin": "islandia",
+    "Serie A": "italia", "Serie B": "italia",
+    "J. League (Japón)": "japon",
+    "Liga MX (Mexico)": "mexico",
+    "Eliteserien": "noruega",
+    "Eredivisie": "holanda", "Eerste Divisie": "holanda",
+    "Ekstraklasa": "polonia",
+    "Liga Portugal": "portugal",
+    "Premier League (Rusia)": "rusia",
+    "Allsvenskan": "suecia",
+    "Super League (Suiza)": "suiza", "Challenge League (Suiza)": "suiza",
+    "Thai League": "thailandia",
+    "Super Lig (Turquía)": "turquia",
+}
+
+
+def _canon_country_token(token: str) -> str | None:
+    """Devuelve la nacionalidad exacta (e.g., 'España') si el token coincide con un alias."""
+    ss = token.strip().lower()
+    ss = unicodedata.normalize("NFD", ss)
+    ss = "".join(ch for ch in ss if unicodedata.category(ch) != "Mn")
+    ss = re.sub(r"[^\w]", "", ss)  # 🔥 elimina puntuación como comas, puntos, etc.
+    nacionalidad = ALIAS_TO_NACIONALIDAD.get(ss)
+    return nacionalidad
+
+
+def _norm_text(s: str) -> str:
+    t = unicodedata.normalize("NFD", (s or "").lower())
+    return "".join(ch for ch in t if unicodedata.category(ch) != "Mn")
+
+
+
+
+
 class Agente1HardFilter:
     DEBUG =True  # ponlo a False en producción
+
+    # --- Normalización países / gentilicios / ligas ---
+
 
     @staticmethod
     def _norm(s: str) -> str:
@@ -66,7 +464,7 @@ class Agente1HardFilter:
         bare_vals = []   # números sin unidad (se escalarán por contexto si aplica)
 
         # 1) Capturas con unidad explícita
-        for m in re.finditer(r"(\d+(?:\.\d+)?)\s*(m|millon|millones|k|mil)\b", q):
+        for m in re.finditer(r"[<≤]\s*(\d+(?:\.\d+)?)(m|millones?|k|mil|euro|euros)?", q):
             v = float(m.group(1)); suf = m.group(2)
             if suf in {"m", "millon", "millones"}: v *= 1_000_000
             elif suf in {"k", "mil"}:               v *= 1_000
@@ -101,9 +499,37 @@ class Agente1HardFilter:
                     num *= 1_000
                 bare_vals.append(num)
 
-        # 4) Frases especiales
+        # 4) Frases tipo "precio máximo X millones", "coste hasta X", etc.
+        for m in re.finditer(
+            r"(?:precio|valor|coste|cueste|cuesta|vale|máximo|maximo|por|hasta)\s*(?:de\s*)?(\d+(?:\.\d+)?)\s*(m|millones?|k|mil|euro|euros)?",
+            q
+        ):
+            num = float(m.group(1))
+            suf = m.group(2)
+            if suf:
+                if suf in {"m", "millon", "millones"}: num *= 1_000_000
+                elif suf in {"k", "mil"}:              num *= 1_000
+            else:
+                win = _vent(*m.span(), 18)
+                if any(w in win for w in [" m", "m ", "millon", "millones"]):
+                    num *= 1_000_000
+                elif any(w in win for w in [" k", "k ", "mil"]):
+                    num *= 1_000
+            with_unit.append(num)
+
+        # 5) Frases especiales
+        # Cap por semántica "barato"
+        if any(w in q for w in ["muy barato", "baratisimo", "baratísimo"]):
+            return 300_000.0
+        if any(w in q for w in ["barato", "asequible", "low cost", "económico", "economico"]):
+            return 1_000_000.0
+
+
         if "medio mill" in q:  # “medio millon/millón”
             with_unit.append(500_000.0)
+
+        
+
 
         # Decisión final:
         if with_unit:
@@ -136,8 +562,19 @@ class Agente1HardFilter:
         for pat in [r"(?:mayor|mas)\s*de\s*(\d{1,2})\s*(?:anos|años)", r"a\s*partir\s*de\s*(\d{1,2})\s*(?:anos|años)", r"\b(\d{1,2})\s*(?:anos|años)\s*o\s*mas", r"edad\s*minima\s*(\d{1,2})"]:
             for m in re.finditer(pat, q):
                 if ok_context(m.span()): edad_min = max(edad_min, int(m.group(1))) if edad_min is not None else int(m.group(1))
+        # Operadores simbólicos con o sin 'años'
+        m = re.search(r"[<≤]\s*(\d{1,2})\s*(?:anos|años)?", q)
+        if m:
+            edad_max = min(edad_max, int(m.group(1))) if edad_max is not None else int(m.group(1))
+
+        m = re.search(r"[>≥]\s*(\d{1,2})\s*(?:anos|años)?", q)
+        if m:
+            edad_min = max(edad_min, int(m.group(1))) if edad_min is not None else int(m.group(1))
+
         if ("joven" in q or "juvenil" in q or "promesa" in q) and edad_max is None: edad_max = 24
-        if ("experimentado" in q or "veteran" in q or "senior" in q) and edad_min is None: edad_min = 28
+        if ("experimentado" in q ) and edad_min is None: edad_min = 27
+        if ("veteran" in q or "senior" in q) and edad_min is None: edad_min = 30
+        
         if edad_max and edad_max > 50: edad_max = None
         if edad_min and edad_min < 15: edad_min = None
         if edad_max and edad_min and edad_max < edad_min: edad_min, edad_max = edad_max, edad_min
@@ -151,6 +588,9 @@ class Agente1HardFilter:
             "centre-back": ["defensa central","central","zaguero","stoper","stopper","libero","defensor central"],
             "left-back": ["lateral izquierdo","carrilero izquierdo","defensa izquierdo","wing-back izquierdo"],
             "right-back": ["lateral derecho","carrilero derecho","defensa derecho","wing-back derecho"],
+            "full-back": ["lateral ","carrilero ","wing-back"],
+            "left midfield": ["carrilero izquierdo","wing-back izquierdo"],
+            "right midfield": ["carrilero derecho", "wing-back derecho"],
             "defensive midfield": ["pivote","mediocentro defensivo","centrocampista defensivo","mediocampista defensivo","volante de contencion","volante de contención","cinco"],
             "central midfield": ["mediocentro","centrocampista","mediocampista","interior","medio"],
             "attacking midfield": ["mediapunta","enganche","trequartista","diez","centrocampista ofensivo","mediocampista ofensivo"],
@@ -167,6 +607,19 @@ class Agente1HardFilter:
         if "winger" in posiciones or any(t in q for t in syn["winger"]):
             if side_right: posiciones.append("right winger")
             elif side_left: posiciones.append("left winger")
+            else: 
+                posiciones.append("left winger")
+                posiciones.append("right winger")
+        if "full-back" in posiciones or any(t in q for t in syn["full-back"]):
+            if side_right: posiciones.append("right-back")
+            elif side_left: posiciones.append("left-back")
+            else: 
+                posiciones.append("left-back")
+                posiciones.append("right-back")
+        if "forward" in posiciones or any(t in q for t in syn["forward"]):
+            posiciones.append("centre-forward")
+            posiciones.append("second striker")
+
         return list(dict.fromkeys(posiciones))
 
     @staticmethod
@@ -179,24 +632,35 @@ class Agente1HardFilter:
 
     def extraer_altura(self, query: str) -> Tuple[float | None, float | None]:
         q = self._norm(query); min_m = max_m = None
-        if any(w in q for w in ["alto","grande","corpulento","imponente"]): min_m = 1.83
-        if any(w in q for w in ["bajo","pequeno","bajito","chico"]): max_m = 1.77
-        for m in re.finditer(r"\b(\d{3})\s*cm\b", q):
-            altura = int(m.group(1)) / 100.0
-            if "menos" in q or "menor" in q: max_m = altura
-            elif "mas" in q or "mayor" in q: min_m = altura
-        for m in re.finditer(r"\b(\d(?:[.,]\d{1,2})?)\s*(?:m(?:etros?)?)\b", q):
-            altura = float(m.group(1).replace(",", "."))
-            if "menos" in q or "menor" in q: max_m = altura
-            elif "mas" in q or "mayor" in q: min_m = altura
-            else: min_m = max(min_m or altura, altura)
-        m = re.search(r"\b(\d)'\s*(\d{1,2})", q)
-        if m:
-            feet = int(m.group(1)); inches = int(m.group(2))
-            altura = feet * 0.3048 + inches * 0.0254
-            if "menos" in q or "menor" in q: max_m = altura
-            elif "mas" in q or "mayor" in q: min_m = altura
-            else: min_m = max(min_m or altura, altura)
+        if any(w in q for w in ["alto","grande","corpulento","imponente"]): 
+            min_m = 1.83
+            return min_m, max_m
+        
+        if any(w in q for w in ["bajo","pequeno","bajito","chico"]): 
+            max_m = 1.75
+            return min_m, max_m
+        # Regex para capturar cosas como "1.83m", "183cm", "2 m", etc.
+        for match in re.finditer(r"(\d+(?:[\.,]\d+)?)(\s*)(cm|m)?\b", q, re.IGNORECASE):
+            num_str, _, unidad = match.groups()
+            if unidad and unidad not in ("m", "cm"):
+                return min_m, max_m  # ← ignorar cosas como "M" (mayúscula), "mil", etc.
+            try:
+                num = float(num_str.replace(",", "."))
+            except ValueError:
+                continue
+
+            if unidad == "cm" or (unidad is None and num > 100):
+                altura = num / 100
+                if "menos" in q or "menor" in q: max_m = altura
+                elif "mas" in q or "mayor" in q: min_m = altura
+                
+            elif unidad == "m":
+                altura = num
+                if "menos" in q or "menor" in q: max_m = altura
+                elif "mas" in q or "mayor" in q: min_m = altura
+
+
+        
         if min_m is not None and (min_m < 1.4 or min_m > 2.2): min_m = None
         if max_m is not None and (max_m < 1.4 or max_m > 2.2): max_m = None
         if min_m is not None and max_m is not None and max_m < min_m: min_m, max_m = max_m, min_m
@@ -209,7 +673,113 @@ class Agente1HardFilter:
         if m:
             try: return float(m.group(1))
             except: pass
+        # patrón: "le quedan menos de dos años", "menos de 2 años de contrato"
+        for m in re.finditer(r"(?:menos\s+de\s+)(\d+)\s+a(?:n|ñ)os", q):
+            max_anios = int(m.group(1))
+            return max_anios
+        
+        for m in re.finditer(r"(?:qu(?:e|é)\s+(?:le\s+)?quede[n]?\s+(?:menos\s+de\s+)?)(\d+)\s+a(?:n|ñ)os(?:\s+de\s+contrato)?", q):
+            max_anios = int(m.group(1))
+            return max_anios
+
+        NUMERAL_MAP = {
+            "un": 1, "uno": 1, "una": 1,
+            "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5,
+            "seis": 6, "siete": 7, "ocho": 8, "nueve": 9, "diez": 10,
+        }
+
+        # en el parser
+        for word, val in NUMERAL_MAP.items():
+            if f"menos de {word} año" in query or f"menos de {word} años" in query:
+                return val
+            
+        # Detectar "que le queden menos de dos años de contrato"
+        for word, val in NUMERAL_MAP.items():
+            patron = rf"(?:qu(?:e|é)\s+(?:le\s+)?quede[n]?\s+menos\s+de\s+{word}\s+a(?:n|ñ)os(?:\s+de\s+contrato)?)"
+            if re.search(patron, q):
+                return val
+
+
+
         return None
+    
+    def extraer_nacionalidades(self, query: str) -> List[str]:
+        """
+        Detecta intenciones de nacionalidad: 'jugador ingles', 'de origen frances', 'portugueses', etc.
+        Devuelve lista de países canónicos (claves de COUNTRY_ALIASES), p.ej. ['inglaterra','francia'].
+        """
+        q = _norm_text(query)
+        targets: set[str] = set()
+
+        # patrones básicos con 'jugador(es)' y 'origen'
+        for m in re.finditer(r"(?:jugador(?:es)?\s*(?:de\s*)?(?:origen\s*)?)([a-záéíóúñ]+)", q):
+            canon = _canon_country_token(m.group(1))
+            if canon: targets.add(canon)
+
+        # 'jugador ingles', 'defensa frances', sin 'jugador' explícito (permitimos en adyacencias)
+        for m in re.finditer(r"\b([a-záéíóúñ]+)(?:es)?\b", q):
+            token = m.group(1)
+            # solo si está cerca de 'jugador', 'defensa', 'central', etc.
+            i, j = m.span()
+            win = q[max(0, i-15):min(len(q), j+15)]
+            if any(w in win for w in ["jugador","central","defensa","delantero","portero","lateral","extremo","pivote","mediocentro"]):
+                canon = _canon_country_token(token)
+                if canon: targets.add(canon)
+
+        # Búsqueda ampliada en toda la query
+        for token in q.split():
+            canon = _canon_country_token(token)
+            if canon:
+                targets.add(canon)
+
+
+        return list(targets)
+
+
+    def extraer_ligas(self, query: str) -> List[str]:
+        """
+        Detecta nombres de ligas por alias y devuelve los nombres tal cual aparecen en tu DF ('liga').
+        """
+        q = _norm_text(query)
+        hits: set[str] = set()
+        # busca frases 'de la X', 'en la X', etc., y alias sueltos
+        for alias, canon in LEAGUE_SYNONYMS.items():
+            if alias in q:
+                hits.add(canon)
+        # también patrones 'de (la) liga X' si llegan con ruido
+        for m in re.finditer(r"liga\s+([a-z0-9\. ]{2,20})", q):
+            alias = _norm_text(m.group(1)).strip()
+            alias = alias.replace(".", "").replace("  "," ")
+            if alias in LEAGUE_SYNONYMS:
+                hits.add(LEAGUE_SYNONYMS[alias])
+        return list(hits)
+
+
+    def extraer_paises_de_liga(self, query: str) -> List[str]:
+        """
+        Detecta 'liga española/inglesa/...', 'liga de francia', 'que juegue en alemania', etc.
+        Devuelve países canónicos (claves COUNTRY_ALIASES) para filtrar por columna 'pais'.
+        """
+        q = _norm_text(query)
+        targets: set[str] = set()
+
+        # "liga española", "liga inglesa", ...
+        for adj, canon in LEAGUE_TO_COUNTRY.items():
+            if f"liga {adj}" in q or f"la liga {adj}" in q:
+                targets.add(canon)
+
+        # "liga de francia", "liga de alemania"
+        for m in re.finditer(r"(?:de\s+(?:la\s+)?)liga\s+([a-záéíóúñ ]+)", q):
+            cand = _canon_country_token(m.group(1).strip())
+            if cand: targets.add(cand)
+
+        # "que juegue en alemania", "en francia", "jugando en portugal", etc.
+        for m in re.finditer(r"(?:en|jugando en|que juegue en)\s+([a-záéíóúñ ]+)", q):
+            cand = _canon_country_token(m.group(1).strip())
+            if cand: targets.add(cand)
+
+        return list(targets)
+
 
     def filtrar(self, df_pre_filtrado: pl.DataFrame, query: str, tipo: Literal["jugador","portero"]) -> Tuple[pl.DataFrame, str]:
         q = self._norm(query)
@@ -323,9 +893,9 @@ class Agente1HardFilter:
         if self.DEBUG: print(f"[A1][Edad] min={edad_min} max={edad_max}")
         if "age" in df.columns:
             if edad_max is not None:
-                tol = 1 if edad_max < 30 else 0
-                antes = df.height; df = df.filter(pl.col("age") <= (edad_max + tol))
-                if self.DEBUG: print(f"[A1][Edad] <= {edad_max}+{tol}: {antes} -> {df.height}")
+                #tol = 1 if edad_max < 30 else 0
+                antes = df.height; df = df.filter(pl.col("age") <= (edad_max))
+                if self.DEBUG: print(f"[A1][Edad] <= {edad_max}: {antes} -> {df.height}")
             if edad_min is not None:
                 antes = df.height; df = df.filter(pl.col("age") >= edad_min)
                 if self.DEBUG: print(f"[A1][Edad] >= {edad_min}: {antes} -> {df.height}")
@@ -407,6 +977,63 @@ class Agente1HardFilter:
         if contrato_max is not None and "años_contrato" in df.columns:
             antes = df.height; df = df.filter(pl.col("años_contrato") < contrato_max)
             if self.DEBUG: print(f"[A1][Contrato] < {contrato_max}: {antes} -> {df.height}")
+
+
+        # ---- Nacionalidad ----
+        nacionalidades_canon = self.extraer_nacionalidades(query)
+        if self.DEBUG: print(f"[A1][Nacionalidad] detectadas={nacionalidades_canon}")
+        if nacionalidades_canon and "nacionalidad" in df.columns:
+            # normalizamos columna 'nacionalidad'
+            df = df.with_columns(
+                pl.col("nacionalidad")
+                .cast(pl.Utf8, strict=False)
+                .map_elements(_norm_text, return_dtype=pl.Utf8)
+                .alias("nacionalidad_norm")
+            )
+
+            # normalizamos también las nacionalidades detectadas
+            nacionalidades_norm = set(_norm_text(n) for n in nacionalidades_canon)
+
+            antes = df.height
+            df = df.filter(pl.col("nacionalidad_norm").is_in(nacionalidades_norm))
+            if self.DEBUG: print(f"[A1][Nacionalidad] filtro: {antes} -> {df.height}")
+
+
+
+        # ---- Liga explícita ----
+        ligas = self.extraer_ligas(query)
+        if self.DEBUG: print(f"[A1][Liga] detectadas={ligas}")
+        if ligas and "liga" in df.columns:
+            df = df.with_columns(pl.col("liga").cast(pl.Utf8, strict=False).alias("liga"))
+            antes = df.height
+            df = df.filter(pl.col("liga").is_in(ligas))
+            if self.DEBUG: print(f"[A1][Liga] filtro: {antes} -> {df.height}")
+
+        # ---- País de la liga (solo si no contradice ligas o si no hay ligas) ----
+        paises_liga = self.extraer_paises_de_liga(query)
+        if self.DEBUG: print(f"[A1][PaisLiga] detectados={paises_liga}")
+        if "pais" in df.columns and paises_liga:
+            aplicar = True
+            if ligas:
+                # si hay ligas explícitas, comprueba consistencia
+                ligas_paises = { LEAGUE_TO_COUNTRY.get(l, None) for l in ligas }
+                ligas_paises.discard(None)
+                if ligas_paises and not any(p in ligas_paises for p in paises_liga):
+                    # contradicción: priorizamos ligas explícitas y NO aplicamos pais
+                    aplicar = False
+            if aplicar:
+                # filtra por país (normalizando)
+                df = df.with_columns(pl.col("pais").cast(pl.Utf8, strict=False).str.to_lowercase().alias("pais_lower"))
+                target_variants = set()
+                for canon in paises_liga:
+                    target_variants |= ALIAS_TO_NACIONALIDAD.get(canon, set())
+                target_variants_norm = { _norm_text(v) for v in target_variants }
+                antes = df.height
+                df = df.filter(pl.col("pais_lower").map_elements(lambda s: _norm_text(s or "") in target_variants_norm, return_dtype=pl.Boolean))
+                if self.DEBUG: print(f"[A1][PaisLiga] filtro: {antes} -> {df.height}")
+            else:
+                if self.DEBUG: print("[A1][PaisLiga] omitido por contradiccion con ligas explicitas")
+
 
         print(f"Agente 1: Filtrados {df.height} jugadores tras aplicar filtros clave.")
         return df, tipo

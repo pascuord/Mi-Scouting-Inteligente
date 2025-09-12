@@ -7,7 +7,7 @@ from sentence_transformers import SentenceTransformer
 import faiss
 from datetime import datetime
 
-# ---- Modelo de embeddings (el mismo que estabas usando) ----
+# ---- Modelo de embeddings ----
 encoder = SentenceTransformer("intfloat/multilingual-e5-base")
 
 def _now():
@@ -38,31 +38,37 @@ def _extract_info_from_meta(m: Any) -> Dict[str, Any]:
     return {"raw": m}
 
 def _normalize_for_polars(doc: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Convierte campos complejos (dict, list, list[dict]) en JSON string
-    para evitar struct/list[struct] en Polars.
-    """
-    out = dict(doc)  # copia superficial
-    complex_fields = [
-        "estadísticas",
-        "rasgos_jugador",
-        "rasgos_portero",
-        "contract_details",
-        "market_value_evolution",
-        "transfer_history",
-        "detalle",  # por si viene embebido de pasadas ejecuciones
-    ]
-    for field in complex_fields:
-        if field in out and out[field] is not None:
-            try:
-                out[field] = json.dumps(out[field], ensure_ascii=False)
-            except Exception:
-                out[field] = None
+    out = {}
+    for k, v in doc.items():
+        # Trata campos complejos como JSON string (seguro para Polars)
+        if k in {
+            "estadísticas",
+            "rasgos_jugador",
+            "rasgos_portero",
+            "contract_details",
+            "market_value_evolution",
+            "transfer_history",
+            "detalle",
+        }:
+            if v in (None, [], {}, [None]) or (isinstance(v, list) and all(x is None for x in v)):
+                out[k] = None
+            else:
+                try:
+                    out[k] = json.dumps(v, ensure_ascii=False)
+                except Exception:
+                    out[k] = None
+        else:
+            # Para todo lo demás, evitamos valores como [], [None], etc.
+            if v in ([], {}, [None]) or (isinstance(v, list) and all(x is None for x in v)):
+                out[k] = None
+            else:
+                out[k] = v
     return out
 
 
+
 class Agente0VectorRetriever:
-    def __init__(self, top_k: int = 1000):
+    def __init__(self, top_k: int = 3500):
         self.top_k = top_k
         self.encoder = encoder
 

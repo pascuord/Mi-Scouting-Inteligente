@@ -12,11 +12,43 @@ import requests
 import aiohttp
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
+# al inicio del archivo
+import brotli  # si añades 'brotli' como dependencia; si usas 'brotlicffi', importa 'brotli' igual
+
+def _decode_response_to_html(resp: requests.Response) -> str:
+    # Si el servidor devolvió Brotli y la lib no lo ha descomprimido, lo forzamos
+    enc = (resp.headers.get("Content-Encoding") or "").lower()
+    # Si resp.text ya viene limpio, úsalo; si no, intenta decodificar content
+    if enc == "br":
+        try:
+            return brotli.decompress(resp.content).decode(resp.encoding or "utf-8", errors="replace")
+        except Exception:
+            # último recurso: intenta BeautifulSoup sobre content binario
+            return resp.text
+    else:
+        # gzip/deflate los maneja requests; text ya viene decodificado
+        return resp.text
+
+def _soup_from_response(resp: requests.Response) -> BeautifulSoup:
+    html = _decode_response_to_html(resp)
+    try:
+        return BeautifulSoup(html, "lxml")  # parser más tolerante
+    except Exception:
+        return BeautifulSoup(html, "html.parser")
+
+
 
 # ==== Config =====
 load_dotenv()
-RAW_DIR = Path(os.getenv("RAW_DIR", "data/raw"))
-INTERIM_DIR = Path(os.getenv("INTERIM_DIR", "data/interim"))
+
+def get_absolute_path(path_str: str, default: str) -> Path:
+    path = Path(path_str)
+    # Si es relativo, interpretarlo como absoluto dentro del contenedor
+    return path if path.is_absolute() else Path(default)
+
+DATA_DIR = get_absolute_path(os.getenv("DATA_DIR", "/data"), "/data")
+RAW_DIR = get_absolute_path(os.getenv("RAW_DIR", str(DATA_DIR / "raw")), DATA_DIR / "raw")
+INTERIM_DIR = get_absolute_path(os.getenv("INTERIM_DIR", str(DATA_DIR / "interim")), DATA_DIR / "interim")
 RAW_DIR.mkdir(parents=True, exist_ok=True)
 INTERIM_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -24,7 +56,7 @@ INTERIM_DIR.mkdir(parents=True, exist_ok=True)
 #Este token se debe actualizar antes del uso, ya que cambia cada 24h, habrá que ir a un jugador en fotmob, click derecho, inspeccionar, darle a network, el filtro fetch,
 #A continuación algún click en la página del jugador, y en currency mismo que saldrá en network, nos metemos y dentro de esta al bajar encontramos el xmas actualizado
 X_MAS_ENV = os.getenv("X_MAS_TOKEN", "").strip()
-x_mas_fallback = "eyJib2R5Ijp7InVybCI6Ii9hcGkvY3VycmVuY3kiLCJjb2RlIjoxNzUzNzc5MTk0MjYyLCJmb28iOiJwcm9kdWN0aW9uOmU1OTAxODhlNWNlZmQxOTI3ZjU5NzE3MDBjNWU4MTc1ZGI3MjkyODUtdW5kZWZpbmVkIn0sInNpZ25hdHVyZSI6IkY5NjM2MjU0RTFFOEJEQzUwRDRGOTFDRTkwNTIwRTE0In0="
+x_mas_fallback = "eyJib2R5Ijp7InVybCI6Ii9hcGkvY3VycmVuY3kiLCJjb2RlIjoxNzU2OTMyNTEzNTg1LCJmb28iOiJwcm9kdWN0aW9uOmZlZDViN2Q5ZmUzMmY0NGZmOGNiNWQ4OWM0YzVkNTM4Mzc1ZjEyZDcifSwic2lnbmF0dXJlIjoiQUM1MkI4QjlDODI3RUZEM0Y2MzgxOTU3QkM0Q0ZDMkYifQ=="
 X_MAS = X_MAS_ENV or x_mas_fallback
 
 
@@ -101,12 +133,39 @@ class FotmobMassiveScraper:
           {"id": 71, "nombre": "Super Lig (Turquía)", "pais": "Turquía", "temporada": "2024-2025"}
         ]
 
+    def _parse_season_dom_map(self, url_jugador: str) -> dict:
+        """
+        Lee el <select> de seasons y devuelve:
+        {
+            "0-0": {"label": "LaLiga", "group": "2025/2026"},
+            "1-0": {"label": "LaLiga", "group": "2024/2025"},
+            ...
+        }
+        Si no hay <optgroup>, group = "".
+        """
+        try:
+            resp = self.session.get(url_jugador, headers=self.headers, timeout=30)
+            soup = _soup_from_response(resp)
+        except Exception:
+            return {}
+
+        out = {}
+        for opt in soup.select("select option[value]"):
+            val = (opt.get("value") or "").strip()
+            if not re.fullmatch(r"\d+-\d+", val):
+                continue
+            label = (opt.get("label") or opt.text or "").strip()
+            og = opt.find_parent("optgroup")
+            group = (og.get("label") or "").strip() if og else ""
+            out[val] = {"label": label, "group": group}
+        return out
+
     # ==================== Funciones originales (idénticas) ==================== #
     def get_equipos_de_liga(self, id_liga, temporada):
         url_liga = f"{self.base_url}/es/leagues/{id_liga}/overview/?season={temporada}"
         print(f"\n[INFO] Buscando equipos para liga {id_liga} ({temporada})")
         resp = self.session.get(url_liga, headers=self.headers, timeout=30)
-        soup = BeautifulSoup(resp.content, "html.parser")
+        soup = _soup_from_response(resp)
         equipos = []
         for script in soup.find_all("script"):
             text = script.string
@@ -131,7 +190,7 @@ class FotmobMassiveScraper:
         print(f"    [INFO] Buscando jugadores en: {nombre_equipo} ({id_equipo})")
         time.sleep(0.5)
         resp = self.session.get(url_squad, headers=self.headers, timeout=30)
-        soup = BeautifulSoup(resp.content, "html.parser")
+        soup = _soup_from_response(resp)
         jugadores = []
         for fila in soup.find_all('tr'):
             link = fila.find('a', href=True)
@@ -159,6 +218,17 @@ class FotmobMassiveScraper:
                         break
             if "entrenador" in posicion or "manager" in posicion or not posicion:
                 continue
+            
+            # Extraer nacionalidad
+            nacionalidad = ""
+            for c in columnas:
+                country_div = c.find('div', class_="css-14ju9uz-PlayerCountry")
+                if country_div:
+                    span_pais = country_div.find('span')
+                    if span_pais:
+                        nacionalidad = span_pais.text.strip()
+                    break
+
             if any(j["id_jugador"] == id_jugador for j in jugadores):
                 continue
             jugadores.append({
@@ -166,7 +236,8 @@ class FotmobMassiveScraper:
                 "nombre": nombre,
                 "id_equipo": id_equipo,
                 "equipo": nombre_equipo,
-                "posicion": posicion
+                "posicion": posicion,
+                "nacionalidad": nacionalidad
             })
         print(f"      [INFO] {len(jugadores)} jugadores (sin staff) encontrados.")
         return jugadores
@@ -187,6 +258,7 @@ class FotmobMassiveScraper:
                     jugadores_totales.append({
                         "id_jugador": jug["id_jugador"],
                         "nombre": jug["nombre"],
+                        "nacionalidad": jug["nacionalidad"],
                         "id_equipo": eq["id_equipo"],
                         "equipo": eq["nombre_equipo"],
                         "id_liga": liga["id"],
@@ -202,7 +274,7 @@ class FotmobMassiveScraper:
         return jugadores_totales
 
     # ==================== Async stats + checkpoints ==================== #
-    async def get_fotmob_stats_async(self, session, player_id, season_id):
+    async def get_fotmob_stats_async(self, session, player_id, season_id, *, max_attempts: int = 5):
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
             "Accept": "application/json, text/plain, */*",
@@ -210,28 +282,32 @@ class FotmobMassiveScraper:
             "x-mas": self.x_mas,
         }
         url = f"https://www.fotmob.com/api/data/playerStats?playerId={player_id}&seasonId={season_id}&isFirstSeason=false"
-        try:
-            async with session.get(url, headers=headers, timeout=15) as response:
-                if response.status == 429:
-                    await asyncio.sleep(2)
-                    async with session.get(url, headers=headers, timeout=15) as retry_response:
-                        if retry_response.status == 200:
-                            return await retry_response.json()
-                        else:
-                            print(f"Error {retry_response.status} para jugador {player_id}")
-                            return None
-                elif response.status == 200:
-                    return await response.json()
-                else:
-                    print(f"Error {response.status} para jugador {player_id}")
-                    return None
-        except Exception as e:
-            print(f"Excepción para jugador {player_id}: {e}")
-            return None
+
+        last_err = None
+        for attempt in range(max_attempts):
+            try:
+                # timeout subido a 25s
+                async with session.get(url, headers=headers, timeout=25) as response:
+                    if response.status == 200:
+                        return await response.json()
+                    elif response.status in (429, 500, 502, 503, 504):
+                        await asyncio.sleep(0.5 * (2 ** attempt))
+                        continue
+                    else:
+                        last_err = RuntimeError(f"HTTP {response.status}")
+            except Exception as e:
+                last_err = e
+                await asyncio.sleep(0.5 * (2 ** attempt))
+
+        print(f"[WARN] get_fotmob_stats_async agotó reintentos para jugador {player_id} (season_id={season_id}). Último error: {last_err}")
+        return None
+
 
     def get_traits_and_season_id(self, url_jugador):
         resp = self.session.get(url_jugador, headers=self.headers, timeout=30)
-        soup = BeautifulSoup(resp.text, "html.parser")
+        soup = _soup_from_response(resp)
+
+        # Rasgos (igual que hacías)
         traits = {}
         for span in soup.select('span.css-1g16yy4-TraitText.e17fib5q6'):
             trait_name = span.text.strip()
@@ -242,12 +318,36 @@ class FotmobMassiveScraper:
                     traits[trait_name] = int(cleaned)
                 except:
                     pass
-        selected_option = soup.select_one('option[selected]')
-        selected_text = selected_option.text.strip() if selected_option else ""
-        palabras_torneo = ["cup", "fifa", "euro", "olympics", "copa"]
-        selected_lower = selected_text.lower() if selected_text else ""
-        season_id = "1-0" if any(p in selected_lower for p in palabras_torneo) else "0-0"
-        return traits, season_id
+
+        # Tu regla: si la etiqueta visible menciona 2026 => pedir 1-0; si no, 0-0
+        first_optgroup = soup.select_one('select optgroup')
+        season_label = first_optgroup.get("label", "") if first_optgroup else ""
+        if not season_label:
+            first_option = soup.select_one('select option[selected], select option')
+            if first_option:
+                season_label = (first_option.get("label") or first_option.text or "").strip()
+
+        season_id = "1-0" if "2026" in (season_label or "") else "0-0"
+
+        # Mapa DOM de seasons (para poder rellenar liga/temporada de las stats)
+        season_dom_map = {}
+        try:
+            for opt in soup.select("select option[value]"):
+                val = (opt.get("value") or "").strip()
+                if not re.fullmatch(r"\d+-\d+", val):
+                    continue
+                label = (opt.get("label") or opt.text or "").strip()
+                og = opt.find_parent("optgroup")
+                group = (og.get("label") or "").strip() if og else ""
+                season_dom_map[val] = {"label": label, "group": group}
+            if not season_dom_map:
+                season_dom_map = self._parse_season_dom_map(url_jugador)
+        except Exception:
+            season_dom_map = self._parse_season_dom_map(url_jugador)
+
+        # DEVOLVEMOS 3 valores
+        return traits, season_id, season_dom_map
+
 
     def extract_all_stats(self, data):
         stats_dict = {}
@@ -274,26 +374,58 @@ class FotmobMassiveScraper:
 
     async def process_player_async(self, session, semaphore, jugador):
         async with semaphore:
-            try:
-                player_id = jugador["id_jugador"]
-                traits, season_id = self.get_traits_and_season_id(jugador["url_jugador"])
-                statsdata = await self.get_fotmob_stats_async(session, player_id, season_id)
-                if not statsdata:
-                    return None
-                stats = self.extract_all_stats(statsdata)
-                if len(stats) < 9:
-                    return None
-                es_portero = "Saves" in stats or "Save percentage" in stats or "Clean sheets" in stats
-                datos_salida = jugador.copy()
-                datos_salida["estadísticas"] = stats
-                if es_portero:
-                    datos_salida["rasgos_portero"] = traits
-                else:
-                    datos_salida["rasgos_jugador"] = traits
-                return datos_salida
-            except Exception as e:
-                print(f"Error procesando jugador {jugador.get('nombre', 'unknown')}: {e}")
-                return None
+            player_id = jugador["id_jugador"]
+            last_exc = None
+
+            for attempt in range(3):
+                try:
+                    # AHORA devuelve también el mapa DOM
+                    traits, season_id, season_dom_map = self.get_traits_and_season_id(jugador["url_jugador"])
+
+                    statsdata = await self.get_fotmob_stats_async(session, player_id, season_id, max_attempts=3)
+                    if not statsdata:
+                        await asyncio.sleep(0.5 * (2 ** attempt)); continue
+
+                    stats = self.extract_all_stats(statsdata)
+                    if not stats or len(stats) < 9:
+                        await asyncio.sleep(0.5 * (2 ** attempt)); continue
+
+                    # Liga/temporada de las STATS: DOM > (no dependemos del JSON)
+                    liga_stats = None
+                    temporada_stats = None
+                    info = season_dom_map.get(season_id) if isinstance(season_dom_map, dict) else None
+                    if info:
+                        label = (info.get("label") or "").strip()
+                        group = (info.get("group") or "").strip()
+                        # Heurística: si hay group con pinta de temporada, úsalo; si no, intenta extraer "20xx/20yy" del label
+                        temporada_stats = group or (re.search(r"20\d{2}\s*/\s*20\d{2}", label or "") or [None])[0]
+                        # La liga suele estar en el label del option (LaLiga, Ligue 1, etc.)
+                        liga_stats = label if label else None
+
+                    # ¿Portero?
+                    es_portero = any(k in stats for k in ("Saves", "Save percentage", "Clean sheets"))
+
+                    # Salida
+                    datos_salida = jugador.copy()
+                    datos_salida["estadísticas"] = stats
+                    datos_salida["season_id_stats"] = season_id
+                    datos_salida["liga_stats"] = liga_stats
+                    datos_salida["temporada_stats"] = temporada_stats
+
+                    if es_portero:
+                        datos_salida["rasgos_portero"] = traits
+                    else:
+                        datos_salida["rasgos_jugador"] = traits
+
+                    return datos_salida
+
+                except Exception as e:
+                    last_exc = e
+                    await asyncio.sleep(0.5 * (2 ** attempt))
+
+            print(f"[WARN] Falló process_player_async para {jugador.get('nombre','unknown')} (id={player_id}). Último error: {last_exc}")
+            return None
+
 
     async def process_players_by_liga_async(self, jugadores_liga, liga_nombre):
         print(f"\n🚀 Iniciando procesamiento asíncrono para {liga_nombre}")

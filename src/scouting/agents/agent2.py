@@ -3,8 +3,12 @@ from __future__ import annotations
 import json, re, unicodedata
 from typing import List, Tuple, Literal, Dict, Any
 import numpy as np
+import re
 import polars as pl
 from sentence_transformers import SentenceTransformer, util
+from typing import Set, Dict, List, Any, Literal
+from collections import defaultdict
+
 
 def _norm(s: str) -> str:
     t = unicodedata.normalize("NFD", (s or "").lower())
@@ -20,54 +24,139 @@ def _safe_json(d: Any) -> Dict[str, Any]:
             return {}
     return {}
 
+
 STAT_DESCRIPTIONS_JUGADORES = {
-    "Goals":"goles anotados","Assists":"asistencias entregadas a un compañero que terminó en gol",
-    "xG":"goles esperados generados según la calidad de los disparos","xGOT":"goles esperados tras disparar a portería (xG on target)",
-    "xG excl. penalty":"goles esperados sin contar penaltis","Shots":"disparos totales realizados",
-    "Shots on target":"disparos que fueron entre los tres palos","xA":"asistencias esperadas según calidad y posición del pase",
-    "Accurate passes":"pases acertados al compañero","Pass accuracy":"porcentaje de precisión en los pases",
-    "Accurate long balls":"pases largos completados correctamente","Long ball accuracy":"porcentaje de acierto en los balones largos",
-    "Chances created":"ocasiones de gol creadas para el equipo","Successful crosses":"centros al área que llegaron a un compañero",
-    "Cross accuracy":"porcentaje de centros exitosos","Dribbles":"regates exitosos frente a un rival",
-    "Dribbles success rate":"porcentaje de éxito en regates","Touches":"total de toques de balón realizados",
-    "Touches in opposition box":"toques dentro del área rival","Dispossessed":"veces que perdió el balón por presión rival",
-    "Fouls won":"faltas recibidas","Tackles won":"entradas exitosas en las que recuperó el balón",
-    "Tackles won %":"porcentaje de éxito en entradas","Duels won":"duelos individuales ganados",
-    "Duels won %":"porcentaje de duelos individuales ganados","Aerials won":"duelos aéreos ganados",
-    "Aerials won %":"porcentaje de duelos aéreos ganados","Interceptions":"intercepciones de pases del rival",
-    "Blocked scoring attempt":"disparos bloqueados que iban a puerta","Fouls committed":"faltas cometidas",
-    "Recoveries":"balones recuperados para su equipo","Possession won final 3rd":"posesiones recuperadas en el último tercio del campo rival",
-    "Dribbled past":"veces que fue superado por regate","Rating":"valoración general de rendimiento en el partido",
-    "Matches":"partidos disputados","Started":"partidos en los que fue titular","Minutes":"minutos disputados",
-    "Yellow cards":"tarjetas amarillas recibidas","Red cards":"tarjetas rojas recibidas"
+    "Goals": "Total de goles anotados por el jugador. Refleja su capacidad como finalizador.",
+    "xG": "Goles esperados generados según la calidad de los disparos. Mide su capacidad para encontrar buenas posiciones de remate.",
+    "xGOT": "Goles esperados una vez que el disparo va a portería. Indica la calidad real de sus remates a puerta.",
+    "xG excl. penalty": "Goles esperados sin incluir penaltis. Útil para evaluar la amenaza real en juego abierto.",
+    "Shots": "Cantidad total de disparos realizados. Un valor alto indica protagonismo ofensivo.",
+    "Shots on target": "Disparos que fueron entre los tres palos. Muestra precisión en la finalización.",
+    
+    "Assists": "Pases que acabaron en gol. Refleja capacidad para asistir con éxito.",
+    "xA": "Asistencias esperadas según la posición y calidad del pase. Indica potencial creativo incluso si no hubo gol.",
+    "Accurate passes": "Pases completados con éxito al compañero. Mide fiabilidad y precisión en circulación.",
+    "Pass accuracy": "Porcentaje total de acierto en pases. Indica seguridad con el balón.",
+    "Accurate long balls": "Pases largos completados con éxito. Refleja visión y precisión en desplazamientos largos.",
+    "Long ball accuracy": "Porcentaje de acierto en balones largos. Cuanto más alto, mejor capacidad de distribución en largo.",
+    "Chances created": "Ocasiones claras de gol generadas. Mide impacto creativo directo en ataque.",
+    "Successful crosses": "Centros completados con éxito. Muy relevante en extremos y laterales ofensivos.",
+    "Cross accuracy": "Porcentaje de centros que llegaron a un compañero. Indica precisión desde banda.",
+    
+    "Dribbles": "Regates exitosos frente a un rival. Mide capacidad de desequilibrio individual.",
+    "Dribbles success rate": "Porcentaje de éxito en regates. Refleja eficiencia en el uno contra uno.",
+    "Touches": "Número total de toques de balón. Indica participación en el juego.",
+    "Touches in opposition box": "Toques dentro del área rival. Mide presencia ofensiva en zonas peligrosas.",
+    "Dispossessed": "Veces que perdió el balón por presión rival. Un percentil alto indica que pierde muy pocos balones.",
+    "Fouls won": "Faltas recibidas. Muestra cuánto desestabiliza al rival con el balón.",
+    
+    "Tackles won": "Entradas exitosas en las que recuperó el balón. Indica agresividad defensiva efectiva.",
+    "Tackles won %": "Porcentaje de éxito en entradas. Cuanto más alto, más eficiente defensivamente.",
+    "Duels won": "Duelos individuales ganados. Relevante para perfiles rocosos y dominantes.",
+    "Duels won %": "Porcentaje de duelos individuales ganados. Mide fiabilidad en el cuerpo a cuerpo.",
+    "Aerials won": "Duelos aéreos ganados. Fundamental en centrales dominantes o delanteros tanque.",
+    "Aerials won %": "Porcentaje de éxito en duelos aéreos. Indica solidez por arriba.",
+    "Interceptions": "Intercepciones de pases rivales. Refleja lectura táctica y posicionamiento defensivo.",
+    "Blocked scoring attempt": "Disparos rivales bloqueados que iban a portería. Indica capacidad de sacrificio defensivo.",
+    "Recoveries": "Balones recuperados para su equipo. Mide trabajo en la presión y compromiso defensivo.",
+    "Possession won final 3rd": "Recuperaciones de balón en el último tercio ofensivo. Refleja presión alta efectiva.",
+    "Dribbled past": "Veces que fue superado por regate. Un percentil alto indica que es muy difícil de superar en el uno contra uno.",
+    
+    "Rating": "Valoración general del rendimiento del jugador. Resume su impacto global en los partidos.",
+    "Matches": "Número total de partidos jugados.",
+    "Started": "Número de partidos en los que fue titular.",
+    "Minutes": "Minutos acumulados durante la temporada.",
+    "Yellow cards": "Tarjetas amarillas recibidas.",
+    "Red cards": "Tarjetas rojas recibidas.",
+    "Fouls committed": "Faltas cometidas. Un percentil alto indica que comete pocas, lo cual es positivo.",
 }
+
 
 STAT_DESCRIPTIONS_PORTEROS = {
-    "Conceded":"goles encajados","Goals conceded":"goles encajados (alternativa)","Saves":"paradas realizadas",
-    "Save percentage":"porcentaje de disparos detenidos","Goals prevented":"diferencia entre xG y goles recibidos (goles evitados)",
-    "Clean sheets":"partidos en los que no recibió goles","Penalties saved":"penaltis detenidos",
-    "Penalty goals faced":"penaltis a los que se enfrentó","Penalty goals conceded":"penaltis que encajó",
-    "Penalty goals saves":"penaltis que logró detener","Error led to goal":"errores que terminaron en gol en contra",
-    "Acted as sweeper":"acciones fuera del área actuando como líbero","High claims":"balones altos interceptados en el área",
-    "Accurate long balls":"balones largos acertados","Long ball accuracy":"porcentaje de acierto en balones largos",
-    "Pass accuracy":"porcentaje de acierto en los pases","Rating":"valoración general de rendimiento en el partido",
-    "Matches":"partidos disputados","Started":"partidos como titular","Yellow cards":"tarjetas amarillas",
-    "Red cards":"tarjetas rojas"
+    "Conceded": "Total de goles encajados. Un percentil alto indica que recibe pocos goles, señal de solidez defensiva.",
+    "Goals conceded": "Total de goles encajados. Mismo significado que 'Conceded'.",
+    "Saves": "Paradas realizadas. Indica capacidad para responder bajo presión y detener disparos peligrosos.",
+    "Save percentage": "Porcentaje de paradas realizadas respecto a los tiros recibidos. Mide efectividad bajo palos.",
+    "Goals prevented": "Diferencia entre goles esperados y goles encajados. Un valor alto indica que evita más goles de lo esperado.",
+    "Clean sheets": "Partidos en los que no recibió goles. Mide solidez del portero y su defensa.",
+    "Penalties saved": "Penaltis detenidos. Refleja reflejos y sangre fría en situaciones clave.",
+    "Penalty goals faced": "Número total de penaltis recibidos. Contextualiza su exposición a estas jugadas.",
+    "Penalty goals conceded": "Penaltis que encajó. Un percentil alto indica que recibe pocos.",
+    "Penalty goals saves": "Penaltis que logró detener. Métrica alternativa al anterior.",
+    "Error led to goal": "Errores que terminaron en gol en contra. Un percentil alto indica que comete muy pocos errores graves (perfil sobrio).",
+    "Acted as sweeper": "Acciones fuera del área actuando como líbero. Refleja capacidad de anticipación y lectura del juego.",
+    "High claims": "Balones altos interceptados en el área. Fundamental para porteros dominantes por alto.",
+    "Accurate long balls": "Pases largos acertados. Indica precisión al iniciar jugada desde atrás.",
+    "Long ball accuracy": "Porcentaje de acierto en balones largos. Mide fiabilidad en desplazamiento largo.",
+    "Pass accuracy": "Porcentaje de acierto en los pases. Clave en porteros que juegan con los pies.",
+    "Rating": "Valoración general del rendimiento del portero. Resume su impacto en el partido.",
+    "Matches": "Número total de partidos jugados.",
+    "Started": "Número de partidos como titular.",
+    "Yellow cards": "Tarjetas amarillas recibidas.",
+    "Red cards": "Tarjetas rojas recibidas.",
 }
 
+
+
 LIGA_COEFICIENTES = {
-    "Premier League":1.0,"LaLiga":1.0,"Bundesliga":1.0,"Serie A":1.0,"Ligue 1":1.0,
-    "Championship":0.88,"Ligue 2":0.86,"Serie B":0.86,"LaLiga2":0.86,"Eredivisie":0.9,
-    "Liga Portugal":0.9,"Super Lig (Turquía)":0.86,"Super League (Suiza)":0.86,"Ekstraklasa":0.84,
-    "First Division A":0.88,"Super League 1 (Grecia)":0.84,"2. Bundesliga":0.86,
-    "Serie A (Brasil)":0.9,"Saudi Pro League":0.88,"MLS":0.8,"Liga Profesional":0.8,
-    "Primera A (Colombia)":0.78,"Liga MX (Mexico)":0.82,"Allsvenskan":0.78,"Super League (China)":0.75,
-    "USL Championship":0.65,"USL League One":0.6,"Indian Super League":0.62,"A-League":0.64,
-    "Thai League":0.6,"Premier League (Canada)":0.62,"Premier League (Egipto)":0.62,
-    "K League 1(Corea del Sur)":0.8,"K League 2 (Corea del Sur)":0.7,"Besta deildin":0.55,
-    "J. League (Japón)":0.8,"1. Division (Dinamarca)":0.78,"Eliteserien":0.78,"Veikkausliiga":0.7,
-    "Premier Division (Irlanda)":0.68,"Challenge League (Suiza)":0.7,"3. Liga":0.7,
+    # 🟩 Nivel 1 – Big Five europeas (referencia máxima)
+    "Premier League": 1.00,
+    "LaLiga": 1.00,
+    "Bundesliga": 1.00,
+    "Serie A": 1.00,
+    "Ligue 1": 1.00,
+
+    # 🟦 Nivel 2 – Ligas casi top (0.90–0.95)
+    "Eredivisie": 0.92,
+    "Liga Portugal": 0.92,
+    "Serie A (Brasil)": 0.92,
+    "Liga Profesional": 0.90,   # Argentina
+    "First Division A": 0.90,   # Bélgica
+    "Championship": 0.90,
+    "Saudi Pro League": 0.88,
+
+    # 🟨 Nivel 3 – Ligas competitivas medias (0.80–0.85)
+    "Super Lig (Turquía)": 0.85,
+    "Super League 1 (Grecia)": 0.84,
+    "Ekstraklasa": 0.80,
+    "Super League (Suiza)": 0.80,
+    "Liga MX (Mexico)": 0.85,
+    "Primera A (Colombia)": 0.82,
+    "K League 1(Corea del Sur)": 0.80,
+    "J. League (Japón)": 0.80,
+    "Premier League (Egipto)": 0.78,
+    "Allsvenskan": 0.78,
+    "Eliteserien": 0.78,
+    "1. Division (Dinamarca)": 0.78,
+
+    # 🟧 Nivel 4 – Ligas menores / desarrollo (0.60–0.78)
+    "Ligue 2": 0.78,
+    "Serie B": 0.78,
+    "LaLiga2": 0.78,
+    "2. Bundesliga": 0.78,
+    "Veikkausliiga": 0.70,
+    "Premier Division (Irlanda)": 0.68,
+    "Challenge League (Suiza)": 0.70,
+    "3. Liga": 0.70,
+    "MLS": 0.78,
+    "Super League (China)": 0.70,
+    "USL Championship": 0.65,
+    "USL League One": 0.60,
+    "Indian Super League": 0.62,
+    "A-League": 0.65,
+    "Thai League": 0.60,
+    "Premier League (Canada)": 0.62,
+    "K League 2 (Corea del Sur)": 0.70,
+    "Besta deildin": 0.55,
 }
+
+
+def _stat_to_block(stat: str) -> str | None:
+    for block, stats in STAT_BLOCKS.items():
+        if stat in stats:
+            return block
+    return None
+
 
 def _build_canon_map() -> Dict[str, str]:
     m={}
@@ -183,10 +272,155 @@ FORCE_GK = {
     "porterias a cero":["Clean sheets"],
 }
 
+STAT_BLOCKS = {
+    "Shooting": {"Goals", "xG", "xGOT", "Shots", "Shots on target", "Penalty goals", "Non-penalty xG"},
+    "Passing": {"Assists", "xA", "Accurate passes", "Pass accuracy", "Accurate long balls", "Long ball accuracy", "Chances created", "Successful crosses", "Cross accuracy"},
+    "Possession": {"Dribbles", "Dribbles success rate", "Touches", "Touches in opposition box", "Dispossessed", "Fouls won", "Penalties awarded"},
+    "Defending": {"Tackles won", "Tackles won %", "Duels won", "Duels won %", "Aerials won", "Aerials won %", "Interceptions", "Blocked scoring attempt", "Recoveries", "Dribbled past", "Possession won final 3rd", "Fouls committed"},
+    "Discipline": {"Yellow cards", "Red cards"}
+}
+
+INTENT_ALIASES = {
+    # ---- Ataque y definición ----
+    "goleador": "finalizacion", "killer": "finalizacion", "finalizador": "finalizacion", "rematador": "finalizacion", "delantero killer": "finalizacion", "buena definicion": "finalizacion",
+
+    # ---- Regate y desborde ----
+    "regateador": "desborde", "habilidoso": "desborde", "eléctrico": "desborde", "conduce bien": "desborde", "buen 1v1": "desborde",
+
+    # ---- Centros y banda ----
+    "centrador": "centros", "banda": "centros", "lateral ofensivo": "centros",
+
+    # ---- Creatividad y pase ----
+    "asistente": "creacion", "creador": "creacion", "playmaker": "creacion", "media punta": "creacion",
+
+    # ---- Pases largos y progresión ----
+    "pase largo": "pase_progresion", "cambio de juego": "pase_progresion", "distribuidor": "pase_progresion",
+
+    # ---- Conservación y seguridad ----
+    "seguro": "posesion", "no pierde balones": "posesion", "sobrio": "posesion",
+
+    # ---- Duelo físico ----
+    "tanque": "duelos", "duro": "duelos", "fuerte": "duelos", "solido": "duelos", "rocoso": "duelos", "dominante": "duelos",
+
+    # ---- Defensa general ----
+    "defensor": "defensa", "central": "defensa", "lateral defensivo": "defensa",
+
+    # ---- Presión y recuperación ----
+    "presionador": "presion", "presionante": "presion", "bueno en presión": "presion", "intenso": "presion", "agresivo sin balón": "presion", "recuperador": "recuperacion", "recuperaciones": "recuperacion",
+
+    # ---- Juego aéreo ----
+    "cabezazos": "aereo", "buen juego aéreo": "aereo",
+
+    # ---- Aparición ofensiva ----
+    "llegador": "toques_area", "pisar área": "toques_area",
+
+    # ---- Porteros ----
+    "portero sobrio": "estabilidad", "sin alardes": "estabilidad",
+    "dominante por arriba": "juego_aereo", "seguro por alto": "juego_aereo",
+    "libero": "sweeper", "porterolibero": "sweeper", "sale del área": "sweeper",
+    "buen pie": "salida_de_balon", "saca bien": "salida_de_balon", "distribuye bien": "salida_de_balon",
+    "evita goles": "paradas", "buen portero": "paradas", "porterazo": "paradas",
+    "porterías a cero": "porteria_cero", "solidez": "porteria_cero",
+}
+
+INTENT_TO_STATS_JUG = {
+    # --- Finalización, tiro ---
+    "finalizacion": {
+        "Shots on target": 1.0, "xG": 0.9, "xGOT": 0.85, "Shots": 0.6
+    },
+
+    # --- Desborde y regate ---
+    "desborde": {
+        "Dribbles": 1.0, "Dribbles success rate": 0.9, "Duels won": 0.6, "Duels won %": 0.5
+    },
+
+    # --- Centros desde banda ---
+    "centros": {
+        "Successful crosses": 1.0, "Cross accuracy": 0.9, "Accurate long balls": 0.5, "Long ball accuracy": 0.4
+    },
+
+    # --- Creatividad y pase final ---
+    "creacion": {
+        "Chances created": 1.0, "xA": 0.95, "Accurate passes": 0.5
+    },
+
+    # --- Pase largo y salida ---
+    "pase_progresion": {
+        "Accurate long balls": 1.0, "Long ball accuracy": 0.85, "Pass accuracy": 0.6
+    },
+
+    # --- Conservación y seguridad ---
+    "posesion": {
+        "Pass accuracy": 0.9, "Dispossessed": 0.9, "Touches": 0.3
+    },
+
+    # --- Duelo físico ---
+    "duelos": {
+        "Duels won": 1.0, "Duels won %": 0.9, "Tackles won": 0.6
+    },
+
+    # --- Defensa y contención ---
+    "defensa": {
+        "Tackles won": 1.0, "Tackles won %": 0.85, "Interceptions": 0.8, "Dribbled past": 0.7
+    },
+
+    # --- Presión alta y recuperación ---
+    "presion": {
+        "Possession won final 3rd": 1.0, "Interceptions": 0.8, "Recoveries": 0.75
+    },
+
+    "recuperacion": {
+        "Interceptions": 0.9, "Recoveries": 1
+    },
+
+    # --- Juego aéreo ---
+    "aereo": {
+        "Aerials won": 1.0, "Aerials won %": 0.95
+    },
+
+    # --- Aparición ofensiva ---
+    "toques_area": {
+        "Touches in opposition box": 1.0
+    }
+}
+
+INTENT_TO_STATS_GK = {
+    # --- Paradas puras ---
+    "paradas": {
+        "Saves": 1.0, "Save percentage": 0.9, "Goals prevented": 0.85
+    },
+
+    # --- Juego aéreo seguro ---
+    "juego_aereo": {
+        "High claims": 1.0
+    },
+
+    # --- Salida y distribución con el pie ---
+    "salida_de_balon": {
+        "Accurate long balls": 1.0, "Long ball accuracy": 0.85, "Pass accuracy": 0.6
+    },
+
+    # --- Porterías a cero y solidez ---
+    "porteria_cero": {
+        "Clean sheets": 1.0, "Conceded": 0.8
+    },
+
+    # --- Sobriedad y sin errores ---
+    "estabilidad": {
+        "Error led to goal": 1.0, "Conceded": 0.7, "Save percentage": 0.6
+    },
+
+    # --- Portero-líbero ---
+    "sweeper": {
+        "Acted as sweeper": 1.0, "High claims": 0.4
+    }
+}
+
+
 # mismo modelo que ya tienes instalado (rápido y suficiente para similitudes de texto)
 encoder = SentenceTransformer("intfloat/multilingual-e5-base")
 
-MINUTES_FILTER_DEFAULT_JUG = 500
+MINUTES_FILTER_DEFAULT_JUG = 500 
 MINUTES_FILTER_DEFAULT_GK = 0
 MINUTES_PREFER_PER90_THRESHOLD = 750
 
@@ -208,12 +442,16 @@ class ScoreEvaluatorAgent:
         self.gk_intent_names = list(GK_INTENT_DESCRIPTIONS.keys())
         self.gk_intent_texts = [GK_INTENT_DESCRIPTIONS[k] for k in self.gk_intent_names]
         self.emb_intents_gk = self.encoder.encode(self.gk_intent_texts, convert_to_tensor=True)
+        self.REQUIRED_BLOCKS = {
+                        "finalizacion": "Shooting", "rematador": "Shooting", "goleador": "Shooting", "killer": "Shooting", "disparo": "Shooting",
+                        "creador": "Passing", "asistencias": "Passing", "pase": "Passing", "creativo": "Passing", "centrador": "Passing",
+                        "regate": "Possession", "conduce": "Possession", "habilidoso": "Possession",
+                        "defensivo": "Defending", "central": "Defending", "recuperacion": "Defending", "presionante": "Defending",
+                    }
+
 
     def get_embedding(self, text: str):
         return self.encoder.encode(text, convert_to_tensor=True)
-
-    def get_liga_coef(self, liga: str) -> float:
-        return LIGA_COEFICIENTES.get((liga or "").strip(), 0.75)
 
     def _read_minutes_real(self, stats: Dict[str, Any]) -> int:
         try:
@@ -239,30 +477,48 @@ class ScoreEvaluatorAgent:
                 mask[fam] = 0.15
         return mask
 
-    def _weights_via_intents(self, query: str, tipo: Literal["jugador","portero"]) -> Dict[str, float]:
+    def _weights_via_intents(self, query: str, tipo: Literal["jugador", "portero"]) -> Dict[str, float]:
         q_emb = self.get_embedding(query)
+
         if tipo == "jugador":
-            sims = util.cos_sim(q_emb, self.emb_intents)[0].cpu().numpy()
-            sims = np.clip(sims, 0, None); sims = sims / sims.sum() if sims.sum() > 0 else np.ones_like(sims)/len(sims)
+            # Usamos alias ya normalizados
+            intent_canon_names = [INTENT_ALIASES.get(name, name) for name in self.intent_names]
+            intent_canon_texts = [INTENT_DESCRIPTIONS.get(name, "") for name in intent_canon_names]
+            emb_canon_intents = self.encoder.encode(intent_canon_texts, convert_to_tensor=True)
+
+            sims = util.cos_sim(q_emb, emb_canon_intents)[0].cpu().numpy()
+            sims = np.clip(sims, 0, None)
+            sims = sims / sims.sum() if sims.sum() > 0 else np.ones_like(sims) / len(sims)
+
             neg_mask = self._negations_mask(query)
-            for i,name in enumerate(self.intent_names):
-                if name in neg_mask: sims[i] *= neg_mask[name]
-            weights: Dict[str,float] = {}
-            for i,intent in enumerate(self.intent_names):
+            for i, name in enumerate(intent_canon_names):
+                if name in neg_mask:
+                    sims[i] *= neg_mask[name]
+
+            weights: Dict[str, float] = {}
+            for i, intent in enumerate(intent_canon_names):
                 contrib = float(sims[i])
-                for stat,w in INTENT_TO_STATS_JUG.get(intent, {}).items():
-                    weights[stat] = weights.get(stat,0.0) + max(0.0,w)*contrib
+                for stat, w in INTENT_TO_STATS_JUG.get(intent, {}).items():
+                    weights[stat] = weights.get(stat, 0.0) + max(0.0, w) * contrib
+
             s = sum(weights.values())
-            return {k: v/s for k,v in weights.items()} if s>0 else {}
-        sims = util.cos_sim(q_emb, self.emb_intents_gk)[0].cpu().numpy()
-        sims = np.clip(sims, 0, None); sims = sims / sims.sum() if sims.sum() > 0 else np.ones_like(sims)/len(sims)
-        weights: Dict[str,float] = {}
-        for i,intent in enumerate(self.gk_intent_names):
-            contrib = float(sims[i])
-            for stat,w in INTENT_TO_STATS_GK.get(intent, {}).items():
-                weights[stat] = weights.get(stat,0.0) + max(0.0,w)*contrib
-        s = sum(weights.values())
-        return {k: v/s for k,v in weights.items()} if s>0 else {}
+            return {k: v / s for k, v in weights.items()} if s > 0 else {}
+
+        else:
+            sims = util.cos_sim(q_emb, self.emb_intents_gk)[0].cpu().numpy()
+            sims = np.clip(sims, 0, None)
+            sims = sims / sims.sum() if sims.sum() > 0 else np.ones_like(sims) / len(sims)
+
+            weights: Dict[str, float] = {}
+            for i, intent in enumerate(self.gk_intent_names):
+                intent_canon = INTENT_ALIASES.get(intent, intent)
+                contrib = float(sims[i])
+                for stat, w in INTENT_TO_STATS_GK.get(intent_canon, {}).items():
+                    weights[stat] = weights.get(stat, 0.0) + max(0.0, w) * contrib
+
+            s = sum(weights.values())
+            return {k: v / s for k, v in weights.items()} if s > 0 else {}
+
 
     def _weights_via_embeddings(self, query: str, tipo: Literal["jugador","portero"]) -> Dict[str, float]:
         q_emb = self.get_embedding(query)
@@ -273,48 +529,381 @@ class ScoreEvaluatorAgent:
         return {names[i]: float(sims[i]) for i in range(len(names))}
 
     def _forced_stats_from_query(self, query: str, tipo: Literal["jugador","portero"]) -> List[str]:
-        q = _norm(query); forced=[]
-        mapping = FORCE_JUG if tipo=="jugador" else FORCE_GK
-        for kw,stats in mapping.items():
-            if kw in q: forced.extend(stats)
-        return list(dict.fromkeys(forced))
+        query_lower = _norm(query)
+        forced = set()
+        words = set(query_lower.split())
+        if tipo == "portero":
+            for word in words:
+                canon = INTENT_ALIASES.get(word, word)
+                for k, stats in FORCE_GK.items():
+                    if canon in _norm(k):
+                        forced.update(stats)
+        else:
+            for word in words:
+                canon = INTENT_ALIASES.get(word, word)
+                for k, stats in FORCE_JUG.items():
+                    if canon in _norm(k):
+                        forced.update(stats)
+        return list(forced)
+
+
+    def _enforce_block_balance(self, query: str, weights: Dict[str, float], tipo: Literal["jugador","portero"]) -> Dict[str, float]:
+        if tipo == "portero":
+            return weights  # No aplicamos balance de bloques en porteros
+
+        # Mapeo de stats a bloques
+        block_stats: Dict[str, Set[str]] = defaultdict(set)
+        for stat in weights:
+            block = _stat_to_block(stat)
+            if block:
+                block_stats[block].add(stat)
+
+        # Si hay al menos 2 bloques ya representados, lo dejamos estar
+        if len(block_stats) >= 2:
+            return weights
+
+        # --- Si hay pocos bloques, intentamos enriquecer con otros bloques coherentes ---
+        query_lower = _norm(query)
+        required_blocks = set()
+
+        for key, block in self.REQUIRED_BLOCKS.items():  # ← lo definiremos abajo
+            if key in query_lower:
+                required_blocks.add(block)
+
+        for block in required_blocks:
+            if block not in block_stats:
+                candidates = STAT_BLOCKS[block]
+                for c in candidates:
+                    if c not in weights:
+                        weights[c] = 0.2 * max(weights.values())  # Añade con peso bajo
+
+        return weights
+
+
+
+
 
     def _select_top_k_metrics_global(self, query: str, tipo: Literal["jugador","portero"], top_k: int = 8) -> Dict[str, float]:
         w_int = self._weights_via_intents(query, tipo)
         w_emb = self._weights_via_embeddings(query, tipo)
-        alpha = 0.6
+        alpha = 0.7
         all_keys = set(w_int) | set(w_emb)
-        merged = {k: alpha*w_int.get(k,0.0) + (1-alpha)*w_emb.get(k,0.0) for k in all_keys}
-        canonical: Dict[str,float] = {}
-        for k,v in merged.items():
-            k2 = STAT_ALIASES.get(k, k)
-            canonical[k2] = canonical.get(k2,0.0) + v
+        merged = {k: alpha*w_int.get(k, 0.0) + (1 - alpha)*w_emb.get(k, 0.0) for k in all_keys}
+        canonical = _canonicalize_stats(merged)
+
         forced = self._forced_stats_from_query(query, tipo)
         for f in forced:
             f2 = STAT_ALIASES.get(f, f)
-            canonical[f2] = max(canonical.get(f2,0.0), (max(canonical.values()) if canonical else 1.0))
+            canonical[f2] = max(canonical.get(f2, 0.0), (max(canonical.values()) if canonical else 1.0))
+
+        canonical = self._enforce_block_balance(query, canonical, tipo)
+        canonical = self._exclude_conflicting_metrics(query, canonical)
+
+
+        query_lower = _norm(query)
+        # Filtro adicional: eliminar Tackles si no es defensa/central/lateral
+        if not any(palabra in query_lower for palabra in ["defensa", "central", "lateral"]):
+            canonical.pop("Tackles won", None)
+            canonical.pop("Tackles won %", None)
+
         if not canonical:
-            fallback = (["Saves","Save percentage","High claims","Accurate long balls","Long ball accuracy","Goals prevented","Pass accuracy","Clean sheets"]
-                        if tipo=="portero"
-                        else ["Dribbles","Successful crosses","Chances created","xA","Shots on target","Accurate passes","Accurate long balls","Duels won"])
-            w = 1.0/len(fallback)
-            return {k:w for k in fallback}
+            fallback = (
+                ["Saves", "Save percentage", "High claims", "Accurate long balls", "Long ball accuracy", "Goals prevented", "Pass accuracy", "Clean sheets"]
+                if tipo == "portero"
+                else ["Dribbles", "Successful crosses", "Chances created", "xA", "Shots on target", "Accurate passes", "Accurate long balls", "Duels won"]
+            )
+            w = 1.0 / len(fallback)
+            return {k: w for k in fallback}
+
+        
+
+        # ---------- Alias robustos para nombres de métricas ----------
+        METRIC_ALIASES = {
+            "Dribbles": ["Dribbles", "Successful dribbles", "Dribbles total"],
+            "Dribbles success rate": ["Dribbles success rate", "Dribble success %", "Dribbles %"],
+
+            "Goals": ["Goals", "Non-penalty goals", "Goals (np)", "Goals total"],
+            "xG excl. penalty": ["xG excl. penalty", "xG (non-penalty)", "npxG"],
+            "Shots on target": ["Shots on target", "Shots OT", "SOT"],
+            "Shots": ["Shots", "Shots total", "Total shots"],
+
+
+            "Successful crosses": ["Successful crosses", "Crosses completed"],
+            "Cross accuracy": ["Cross accuracy", "Crosses accuracy %"],
+            "Accurate long balls": ["Accurate long balls", "Long balls completed", "Successful long balls"],
+
+            "Interceptions": ["Interceptions"],
+            "Recoveries": ["Recoveries", "Ball recoveries"],
+            "Possession won final 3rd": ["Possession won final 3rd", "Possession won in final third", "Possession won (final 3rd)"],
+            "Duels won": ["Duels won", "Ground duels won", "Offensive duels won", "Duels won %"],
+            "Aerials won": ["Aerials won", "Aerials won %"],
+
+        }
+
+        def pick_metric(name: str, canonical: Dict[str, float]) -> str | None:
+            """
+            Devuelve el 'display name' elegido (primer alias encontrado).
+            Si no existe ninguno en canonical, crea el principal con peso mínimo.
+            """
+            aliases = METRIC_ALIASES.get(name, [name])
+            for a in aliases:
+                if a in canonical:
+                    return a
+            # Si no existe: damos de alta el principal con peso mínimo para garantizar inserción
+            main = aliases[0]
+            if main not in canonical:
+                canonical[main] = 1e-6  # stub mínimo
+            return main
+
+        # --- DETECCIÓN DE INTENCIONES CLAVE (regex con límites de palabra) ---
+        # regate
+        has_regate = bool(re.search(r"\bregate(?:ar|ando|ador(?:a)?s?)?\b", query_lower))
+
+        # gol
+        has_gol = bool(re.search(r"\bgol(?:eador(?:a)?|es)?\b|\brematador(?:a)?s?\b", query_lower))
+
+        # centros: solo si se habla de centrar/centros, NO por 'mediocentro/centrocampista/delantero centro/defensa central'
+        match_centros = bool(re.search(
+            r"(?:\bcentr(?:ar|e|ando|ador(?:a)?s?)\b|\bcentros?\b|centre bien|buen[oa]s?\s+centros?)",
+            query_lower
+        ))
+        falsos_centros = bool(re.search(
+            r"\bmediocentro(?:campista)?\b|\bcentrocampista\b|\bdelantero\s+centro\b|\bdefensa\s+central\b",
+            query_lower
+        ))
+        has_centros = match_centros and not falsos_centros
+
+        # Candado extra: si NO hay verbos/expresión explícita de centrar, apaga centros
+        if has_centros:
+            explicito_centrar = bool(re.search(r"\bcentr(?:ar|e|ando|ador(?:a)?s?)\b|centre bien|buen[oa]s?\s+centros?", query_lower))
+            if not explicito_centrar:
+                has_centros = False
+
+        # recuperaciones
+        has_recuperaciones = bool(re.search(
+            r"\brecuper(?:aci(?:ó|o)nes|ar|ando|ador(?:a)?s?)\b|\brecupere\b",
+            query_lower
+        ))
+
+        # presiones / pressing alto
+        has_presiones = bool(re.search(
+            r"\bpresi(?:ó|o)n(?:es)?\b|\bpresion(?:ar|ando|ante|ador(?:a)?)\b|\bpressing\b|\bpresione\b",
+            query_lower
+        ))
+        # Detección
+        has_duelos = bool(re.search(r"\bduelos?\b", query_lower))
+
+        # Boost más notorio
+        if has_duelos:
+            for alias in METRIC_ALIASES["Duels won"]:
+                if alias in canonical:
+                    canonical[alias] *= 1.35
+
+
+        # Orden fijo de bloques: regate > gol > centros > recuperaciones > presiones > duelos
+        bloques = []
+        if has_regate:          bloques.append("regate")
+        if has_gol:             bloques.append("gol")
+        if has_centros:         bloques.append("centros")
+        if has_recuperaciones:  bloques.append("recuperaciones")
+        if has_presiones:       bloques.append("presiones")
+        if has_duelos:          bloques.append("duelos") 
+
+
+        # ---------- Contenidos de cada bloque (3 métricas cada uno) ----------
+        BLOQUE_METRICAS = {
+            "regate":  ["Dribbles", "Dribbles success rate", "Duels won"],
+            "gol":     ["Goals", "xG excl. penalty", "Shots on target"],
+            "centros": ["Successful crosses", "Cross accuracy", "Accurate long balls"],
+            "recuperaciones": ["Recoveries", "Interceptions"],
+            "presiones":      ["Possession won final 3rd", "Interceptions"],
+            "duelos": ["Duels won"],
+        }
+
+
+        # ---------- Limpieza de tackles si no es defensa ----------
+        if not any(palabra in query_lower for palabra in ["defensa", "central", "lateral"]):
+            canonical.pop("Tackles won", None)
+            canonical.pop("Tackles won %", None)
+
+        if not canonical:
+            fallback = (
+                ["Saves", "Save percentage", "High claims", "Accurate long balls", "Long ball accuracy", "Goals prevented", "Pass accuracy", "Clean sheets"]
+                if tipo == "portero"
+                else ["Dribbles", "Successful crosses", "Chances created", "xA", "Shots on target", "Accurate passes", "Accurate long balls", "Duels won"]
+            )
+            w = 1.0 / len(fallback)
+            return {k: w for k in fallback}
+        
+        # Downweights si NO hay intención explícita
+        if not has_gol:
+            # Baja tiros y sus derivados
+            for alias in METRIC_ALIASES.get("Shots on target", []):
+                if alias in canonical: canonical[alias] *= 0.6
+            for key in ["Goals", "xG excl. penalty"]:
+                for a in METRIC_ALIASES.get(key, [key]):
+                    if a in canonical: canonical[a] *= 0.7
+
+        if not has_centros:
+            # Baja solo métricas de cruce; dejamos 'Accurate long balls' intacto (útil para DMs)
+            for a in METRIC_ALIASES.get("Successful crosses", []):
+                if a in canonical: canonical[a] *= 0.65
+            for a in METRIC_ALIASES.get("Cross accuracy", []):
+                if a in canonical: canonical[a] *= 0.65
+
+
+        # ---------- Ranking por pesos para definir pesos de slots ----------
         total = sum(canonical.values())
-        ranked = sorted(((k, v/total) for k,v in canonical.items()), key=lambda kv: kv[1], reverse=True)
-        ordered=[]
+        ranked = sorted(((k, v / total) for k, v in canonical.items()), key=lambda kv: kv[1], reverse=True)
+
+        base_metrics = [k for k, _ in ranked]
+        slot_weights = [w for _, w in ranked]
+        while len(base_metrics) < top_k:
+            base_metrics.append(None)
+        while len(slot_weights) < top_k:
+            slot_weights.append(slot_weights[-1] if slot_weights else 1.0 / top_k)
+
+        slots = base_metrics[:top_k]  # copia de los candidatos iniciales por peso
+
+        # ---------- Forced primero (si los hay), manteniendo slots ----------
+        def move_to_front(slots_list, item):
+            if item in slots_list:
+                slots_list.remove(item)
+            slots_list.insert(0, item)
+
+        ordered_forced = []
         for f in forced:
             f2 = STAT_ALIASES.get(f, f)
-            if f2 in [m for m,_ in ranked] and f2 not in ordered:
-                ordered.append(f2)
-        for k,_ in ranked:
-            if k not in ordered: ordered.append(k)
-        chosen = ordered[:top_k]
-        raww = {k: canonical.get(k,0.0) for k in chosen}
-        s = sum(raww.values())
+            if f2 in canonical and f2 not in ordered_forced:
+                ordered_forced.append(f2)
+        for it in reversed(ordered_forced):
+            move_to_front(slots, it)
+
+        # ---------- Inserción con desplazamiento y sin duplicados ----------
+        def insert_with_shift(sl, item, pos):
+            if item in sl:
+                sl.remove(item)
+            pos = max(0, min(pos, top_k - 1))
+            sl.insert(pos, item)
+            del sl[top_k:]  # truncamos si excede
+
+        # Posición inicial para bloques: 1 (segunda métrica); si hay varios bloques, se acumulan
+        pos_cursor = 1
+        for bloque in bloques:
+            for m in BLOQUE_METRICAS[bloque]:
+                chosen_name = pick_metric(m, canonical)
+                if chosen_name:
+                    insert_with_shift(slots, chosen_name, pos_cursor)
+                    pos_cursor += 1
+
+        # ---------- Relleno con el resto por peso, sin duplicar ----------
+        for k, _ in ranked:
+            if k not in slots and len(slots) < top_k:
+                slots.append(k)
+        slots = (slots + [None]*top_k)[:top_k]
+
+        # ---------- Métrica -> peso de su ranura; renormalizar ----------
+        out = {}
+        for i, m in enumerate(slots):
+            if m is not None:
+                out[m] = slot_weights[i] if i < len(slot_weights) else (1.0 / top_k)
+
+        s = sum(out.values())
         if s <= 0:
-            w = 1.0/len(chosen)
-            return {k:w for k in chosen}
-        return {k: raww[k]/s for k in chosen}
+            w = 1.0 / max(1, len(out))
+            return {k: w for k in out}
+        return {k: v / s for k, v in out.items()}
+
+
+
+
+    
+
+    def _enforce_block_balance(self, query: str, stats_dict: Dict[str, float], tipo: Literal["jugador","portero"]) -> Dict[str, float]:
+        q = _norm(query)
+        block_counts = {"Shooting":0, "Passing":0, "Possession":0, "Defending":0}
+        for stat in stats_dict:
+            b = _stat_to_block(stat)
+            if b in block_counts:
+                block_counts[b] += 1
+
+        counts_required = {"Shooting": 3, "Passing": 3, "Possession": 2, "Defending": 3}
+        block_hits = {block: any(k in q for k in kws) for block, kws in {
+            "Shooting": ["rematador","goleador","killer","disparo"],
+            "Passing": ["asistencias","creador","pase","vision"],
+            "Possession": ["regate","habil","conduce","posesion"],
+            "Defending": ["defensivo","central","recuperacion","bloqueos"]
+        }.items()}
+
+        for block, required_count in counts_required.items():
+            if not block_hits.get(block): continue
+            current = [s for s in stats_dict if _stat_to_block(s) == block]
+            missing = required_count - len(current)
+            if missing > 0:
+                candidate_stats = list(STAT_BLOCKS[block])
+                embs_all = self.emb_stats_j if tipo == "jugador" else self.emb_stats_gk
+                stats_names = self.stat_names_j if tipo == "jugador" else self.stat_names_gk
+                emb_query = self.get_embedding(query)
+                sims = util.cos_sim(emb_query, embs_all)[0].cpu().numpy()
+                best_stats = [
+                    stats_names[i] for i in np.argsort(sims)[::-1]
+                    if stats_names[i] in candidate_stats and stats_names[i] not in stats_dict
+                ][:missing]
+                for s in best_stats:
+                    stats_dict[s] = min(0.25, max(stats_dict.values(), default=0.1))
+
+        return stats_dict
+
+    def _exclude_conflicting_metrics(self, query: str, weights: Dict[str, float]) -> Dict[str, float]:
+        cleaned = weights.copy()
+        q_lower = _norm(query)
+
+        # 1. Evitar tener tanto "Dribbles" como "Dribbled past"
+        if "Dribbles" in cleaned and "Dribbled past" in cleaned:
+            cleaned.pop("Dribbled past")  # Prioriza habilidad ofensiva
+
+        # 2. Si está "Dispossessed", quitamos "Dribbles" si no se menciona "regate" en query
+        if "Dribbles" in cleaned and "Dispossessed" in cleaned:
+            if "regate" not in q_lower and "dribble" not in q_lower:
+                cleaned.pop("Dribbles")
+
+        # 3. Evitar tener "Duels won" y "Duels won %"
+        if "Duels won" in cleaned and "Duels won %" in cleaned:
+            if cleaned["Duels won"] > cleaned["Duels won %"]:
+                cleaned.pop("Duels won %")
+            else:
+                cleaned.pop("Duels won")
+
+        # 4. Evitar exceso de métricas de remate
+        remate = ["xG", "xGOT", "Shots on target", "Goals", "Shots"]
+        activos = [r for r in remate if r in cleaned]
+        if len(activos) > 3:
+            # Nos quedamos con los 3 de mayor peso
+            top = sorted(((k, cleaned[k]) for k in activos), key=lambda kv: kv[1], reverse=True)[:3]
+            top_names = {k for k,_ in top}
+            for k in activos:
+                if k not in top_names:
+                    cleaned.pop(k)
+
+        # 5. "Accurate long balls" vs "Long ball accuracy"
+        if "Accurate long balls" in cleaned and "Long ball accuracy" in cleaned:
+            if cleaned["Accurate long balls"] >= cleaned["Long ball accuracy"]:
+                cleaned.pop("Long ball accuracy")
+            else:
+                cleaned.pop("Accurate long balls")
+
+        # 6. "Pass accuracy" + "Accurate passes"
+        if "Pass accuracy" in cleaned and "Accurate passes" in cleaned:
+            if "posesion" in q_lower or "precision" in q_lower:
+                pass  # permitimos ambas si hay motivación
+            elif cleaned["Pass accuracy"] >= cleaned["Accurate passes"]:
+                cleaned.pop("Accurate passes")
+            else:
+                cleaned.pop("Pass accuracy")
+
+        return cleaned
+
+
 
     def _compute_stat_score(self, stat_name: str, stat_dict: Dict[str, Any], prefer_per90: bool) -> float:
         try:
@@ -325,9 +914,9 @@ class ScoreEvaluatorAgent:
         except Exception:
             pctl=pctl90=val=val90=0.0
         if prefer_per90:
-            w_pctl,w_pctl90,w_val,w_val90 = 0.25,0.45,0.20,0.10
+            w_pctl,w_pctl90,w_val,w_val90 = 0.25,0.45,0.10,0.20
         else:
-            w_pctl,w_pctl90,w_val,w_val90 = 0.40,0.30,0.20,0.10
+            w_pctl,w_pctl90,w_val,w_val90 = 0.45,0.3,0.15,0.10
         if stat_name in LOWER_BETTER_IGNORE_RAW:
             w_val=w_val90=0.0
         return (w_pctl*pctl) + (w_pctl90*pctl90) + (w_val*val) + (w_val90*val90)
@@ -335,6 +924,8 @@ class ScoreEvaluatorAgent:
     def score_dataframe(self, df_filtrado: pl.DataFrame, query: str,
                         tipo: Literal["jugador","portero"]) -> Tuple[List[dict], pl.DataFrame]:
         min_minutos = self.extract_minutes_filter(query, tipo)
+        print("ANTES del filtro por minutos:", df_filtrado.height)
+        print("Minutos requeridos:", min_minutos)
 
         def keep_row(stats_json):
             stats = _safe_json(stats_json)
@@ -366,7 +957,8 @@ class ScoreEvaluatorAgent:
                 total_score += ponderado
 
             liga = row.get("liga","") or ""
-            coef = LIGA_COEFICIENTES.get(liga, 0.75)
+            liga_stats = row.get("liga_stats")
+            coef = LIGA_COEFICIENTES.get(liga_stats, 0.75)
             total_score *= coef
             if coef >= 0.95: nivel_liga = "alta exigencia competitiva"
             elif coef >= 0.8: nivel_liga = "nivel competitivo intermedio"
@@ -378,6 +970,7 @@ class ScoreEvaluatorAgent:
                 "nombre": row.get("nombre"),
                 "equipo": row.get("equipo"),
                 "liga": liga,
+                "nacionalidad": row.get("nacionalidad"),
                 "main_position": row.get("main_position"),
                 "other_positions": row.get("other_positions", []),
                 "age": row.get("age"),
@@ -390,9 +983,13 @@ class ScoreEvaluatorAgent:
                 "foot": row.get("foot"),
                 "minutes_real": minutes_real,
                 "años_contrato": row.get("años_contrato"),
-                "nivel_liga": nivel_liga
+                "nivel_liga": nivel_liga,
+                "estadisticas":row.get("estadísticas"),
+                "liga_stats": liga_stats,
+                "temporada_stats": row.get("temporada_stats"),
             })
 
+        print(len(resultados))
         resultados = sorted(resultados, key=lambda x: x["score"], reverse=True)
         top3_nombres = [r["nombre"] for r in resultados[:3]]
         df_top3 = df.filter(pl.col("nombre").is_in(top3_nombres)) if df.height else df

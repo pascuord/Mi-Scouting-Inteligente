@@ -78,26 +78,50 @@ def _ensure_info_block(doc: Dict, tipo: str) -> Dict:
         return {"id": doc.get("id"), "nombre": doc.get("nombre") or doc["info"].get("nombre"), "info": doc["info"]}
 
     # No hay info; construimos un bloque base con mapping de claves más comunes
-    base_info = {
-        "nombre": doc.get("nombre"),
-        "equipo": doc.get("equipo"),
-        "liga": doc.get("liga"),
-        "pais": doc.get("pais"),
-        "temporada": doc.get("temporada"),
-        "url_jugador_fotmob": doc.get("url_jugador_fotmob") or doc.get("url_fotmob"),
-        "url_jugador_transfermarkt": doc.get("url_jugador_transfermarkt") or doc.get("url_tm"),
-        "main_position": doc.get("main_position"),
-        "other_positions": doc.get("other_positions"),
-        "foot": doc.get("foot"),
-        "age": doc.get("age"),
-        "height": doc.get("height"),
-        "market_value": doc.get("market_value"),
-        "contract_details": doc.get("contract_details"),
-        "market_value_evolution": doc.get("market_value_evolution"),
-        "transfer_history": doc.get("transfer_history"),
-        "estadísticas": doc.get("estadísticas"),
-        "rasgos_jugador": doc.get("rasgos_jugador"),
-    }
+    if tipo == "jug":
+        base_info = {
+            "nombre": doc.get("nombre"),
+            "nacionalidad": doc.get("nacionalidad"),
+            "equipo": doc.get("equipo"),
+            "liga": doc.get("liga"),
+            "pais": doc.get("pais"),
+            "temporada": doc.get("temporada"),
+            "main_position": doc.get("main_position"),
+            "other_positions": doc.get("other_positions"),
+            "foot": doc.get("foot"),
+            "age": doc.get("age"),
+            "height": doc.get("height"),
+            "market_value": doc.get("market_value"),
+            "contract_details": doc.get("contract_details"),
+            "market_value_evolution": doc.get("market_value_evolution"),
+            "transfer_history": doc.get("transfer_history"),
+            "estadísticas": doc.get("estadísticas"),
+            "liga_stats": doc.get("liga_stats"),
+            "temporada_stats": doc.get("temporada_stats"),
+            "rasgos_jugador": doc.get("rasgos_jugador"),
+        }
+    else:
+        base_info = {
+            "nombre": doc.get("nombre"),
+            "nacionalidad": doc.get("nacionalidad"),
+            "equipo": doc.get("equipo"),
+            "liga": doc.get("liga"),
+            "pais": doc.get("pais"),
+            "temporada": doc.get("temporada"),
+            "main_position": doc.get("main_position"),
+            "other_positions": doc.get("other_positions"),
+            "foot": doc.get("foot"),
+            "age": doc.get("age"),
+            "height": doc.get("height"),
+            "market_value": doc.get("market_value"),
+            "contract_details": doc.get("contract_details"),
+            "market_value_evolution": doc.get("market_value_evolution"),
+            "transfer_history": doc.get("transfer_history"),
+            "estadísticas": doc.get("estadísticas"),
+            "liga_stats": doc.get("liga_stats"),
+            "temporada_stats": doc.get("temporada_stats"),
+            "rasgos_portero": doc.get("rasgos_portero"),
+        }
 
     # Intentar enriquecer con detalles por ID (si existen)
     pid = doc.get("id")

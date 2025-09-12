@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 libnss3 libx11-6 libxcomposite1 libxcursor1 libxdamage1 libxext6 \
     libxi6 libxtst6 libxrandr2 libasound2 libxss1 libxshmfence1 libxkbcommon0 \
     libgtk-3-0 libdrm2 libgbm1 libxcb1 libpango-1.0-0 libcairo2 fonts-liberation \
+    libjpeg62-turbo zlib1g libpng16-16 libfreetype6 libopenblas0 fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiamos metadatos del proyecto y lo instalamos en editable
@@ -41,10 +42,16 @@ RUN pip install -e . \
     && pip install \
        python-dotenv langgraph langchain-openai \
        plotly kaleido \
-       sentence-transformers faiss-cpu polars unidecode aiohttp bs4 requests
+       sentence-transformers faiss-cpu polars unidecode aiohttp bs4 requests rapidfuzz \
+       mplsoccer==1.2.2 Pillow>=10.3 matplotlib>=3.8 numpy>=1.26 \
+       brotli lxml
 
 # (Opcional pero recomendable) Pre-descargar el modelo de embeddings para no hacerlo en arranque
 #RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('intfloat/multilingual-e5-base')"
+
+ENV HF_HOME=/data/hf
+# Si tenías TRANSFORMERS_CACHE, elimínalo o déjalo sin valor
+
 
 # Directorios de datos (se montarán como volumen)
 RUN mkdir -p /data/raw /data/interim /data/processed/indices

@@ -1,17 +1,3 @@
-# src/scouting/etl/merge_data.py
-"""
-Une FotMob (db_fotmob.json) y Transfermarkt (db_transfermarkt.json) con INNER JOIN por nombre limpio.
-- Entrada flexible: soporta varios formatos de db_transfermarkt.json:
-    1) lista de jugadores
-    2) {"leagues": { <liga>: {"players": [...] } } }
-    3) {"players": [...]}
-    4) otros dicts comunes (intenta detectar)
-- Output:
-    data/processed/merged/db_combinada.json
-    data/processed/merged/db_jugadores.json
-    data/processed/merged/db_porteros.json
-"""
-
 from __future__ import annotations
 import os
 import re
@@ -20,220 +6,246 @@ from pathlib import Path
 from typing import Dict, List, Any
 from dotenv import load_dotenv
 import unidecode
+from collections import defaultdict
+from rapidfuzz import fuzz, process
 
 # -------- Config y rutas --------
 load_dotenv()
-RAW_DIR = Path(os.getenv("RAW_DIR", "data/raw"))
-PROCESSED_DIR = Path(os.getenv("PROCESSED_DIR", "data/processed"))
-MERGED_DIR = Path(os.getenv("MERGED_DIR", str(PROCESSED_DIR / "merged")))
 
-FOTMOB_PATH = RAW_DIR / "db_fotmob.json"
-TM_PATH = RAW_DIR / "db_transfermarkt.json"
+def get_absolute_path(path_str: str, default: str) -> Path:
+    path = Path(path_str)
+    # Si es relativo, interpretarlo como absoluto dentro del contenedor
+    return path if path.is_absolute() else Path(default)
+
+# En local: ./data/...     En Docker: /data/...
+DATA_DIR = get_absolute_path(os.getenv("DATA_DIR", "/data"), "/data")
+RAW_DIR = get_absolute_path(os.getenv("RAW_DIR", str(DATA_DIR / "raw")), DATA_DIR / "raw")
+INTERIM_DIR = get_absolute_path(os.getenv("INTERIM_DIR", str(DATA_DIR / "interim")), DATA_DIR / "interim")
+PROCESSED_DIR = get_absolute_path(os.getenv("PROCESSED_DIR", str(DATA_DIR / "processed")), DATA_DIR / "processed")
+MERGED_DIR = get_absolute_path(os.getenv("MERGED_DIR", str(PROCESSED_DIR / "merged")), PROCESSED_DIR / "merged")
+
+
+FOTMOB_PATH = Path("/data/raw/db_fotmob.json")
+TM_PATH = Path("/data/raw/db_transfermarkt.json")
 
 OUT_COMBINADA = MERGED_DIR / "db_combinada.json"
 OUT_JUGADORES = MERGED_DIR / "db_jugadores.json"
 OUT_PORTEROS  = MERGED_DIR / "db_porteros.json"
-
 MERGED_DIR.mkdir(parents=True, exist_ok=True)
 
+# -------- Apodos y utilidades --------
+APODOS_HARDCODE = {
+    'ezequiel avila': 'chimy avila',
+    'flavien boyomo': 'enzo boyomo',
+    'abderrahman': 'abde',
+    'abdessamad': 'abde',
+    'francisco': 'fran',
+    'enrique': 'kike',
+    'jose': 'pepe',
+    'franciso': 'paco',
+    'jose': 'jose maria'
+}
 
-# -------- Helpers --------
-def clean_text(s: str) -> str:
-    if not s:
-        return ""
-    s = unidecode.unidecode(str(s)).lower()
-    s = re.sub(r"[^a-z0-9 ]+", " ", s)
-    s = re.sub(r"\s+", " ", s).strip()
-    return s
+def clean_name(name):
+    if not name: return ""
+    name = unidecode.unidecode(name.lower())
+    name = re.sub(r'[^a-z0-9 ]', '', name)
+    return re.sub(r'\s+', ' ', name).strip()
 
-def is_portero_tm(main_position: str | None) -> bool:
-    pos = (main_position or "").lower()
-    return "goalkeeper" in pos or "portero" in pos or pos == "gk"
+def tokenize(name): return clean_name(name).split()
+def last_token(name): return tokenize(name)[-1] if tokenize(name) else ""
 
-def pick_best_tm_match(candidates: List[Dict[str, Any]], fm_team: str | None) -> Dict[str, Any] | None:
-    """Si hay varios TM con el mismo nombre limpio, escogemos el que mejor coincida por equipo."""
-    if not candidates:
-        return None
-    if not fm_team:
-        return candidates[0]
-    fm_team_c = clean_text(fm_team)
-    for c in candidates:
-        if clean_text(c.get("team_name")) == fm_team_c:
-            return c
-    for c in candidates:
-        tm_team = clean_text(c.get("team_name", ""))
-        if fm_team_c and (fm_team_c in tm_team or tm_team in fm_team_c):
-            return c
-    return candidates[0]
+def pos_bucket(pos):
+    pos = (pos or '').lower()
+    if 'goalkeeper' in pos or 'portero' in pos: return 'GK'
+    if any(k in pos for k in ['cb','rb','lb','df','def','back']): return 'DEF'
+    if any(k in pos for k in ['mid','cm','am','dm','medio']): return 'MID'
+    if any(k in pos for k in ['fw','st','wing','del','att','ext']): return 'FWD'
+    return 'UNK'
 
+def equipo_match(e1, e2): return clean_name(e1 or '') == clean_name(e2 or '')
+
+def nombre_es_apodo(nombre_fm, nombre_tm):
+    nombre_fm_clean = clean_name(nombre_fm)
+    nombre_tm_clean = clean_name(nombre_tm)
+    for original, apodo in APODOS_HARDCODE.items():
+        if nombre_fm_clean.startswith(original) and nombre_tm_clean.startswith(apodo): return True
+        if nombre_tm_clean.startswith(original) and nombre_fm_clean.startswith(apodo): return True
+    return False
+
+def nombre_tokens_parcial(tokens_fm, tokens_tm):
+    set_fm = set(tokens_fm)
+    set_tm = set(tokens_tm)
+    comunes = set_fm & set_tm
+    return len(comunes) >= 2 or set_fm.issubset(set_tm) or set_tm.issubset(set_fm)
+
+def nombre_subtokens_con_apellido(tokens_fm, tokens_tm):
+    if not tokens_fm or not tokens_tm: return False
+    ap1, ap2 = tokens_fm[-1], tokens_tm[-1]
+    if ap1 != ap2: return False
+    nombre_fm = tokens_fm[0]
+    return nombre_fm in tokens_tm or nombre_fm[:4] in tokens_tm[0][:4]
+
+def score_candidato(p_fm, p_tm):
+    score = 0
+    if p_fm.get('age') and p_tm.get('age') and abs(p_fm['age'] - p_tm['age']) <= 1: score += 1
+    if p_fm.get('main_position') and p_tm.get('main_position'):
+        if pos_bucket(p_fm['main_position']) == pos_bucket(p_tm['main_position']): score += 1
+    if p_fm.get('height') and p_tm.get('height') and p_fm['height'] == p_tm['height']: score += 1
+    if equipo_match(p_fm.get('equipo'), p_tm.get('team_name')): score += 2
+    return score
+
+def is_portero(player):
+    pos = (player.get('main_position') or '').lower()
+    return 'goalkeeper' in pos or 'portero' in pos
+
+# -------- Formatos TM --------
 def load_transfermarkt_players(tm_json: Any) -> List[Dict[str, Any]]:
-    """
-    Devuelve una lista de jugadores cualquiera que sea la forma del JSON de TM.
-    Casos soportados:
-     - list -> se devuelve tal cual
-     - dict con 'leagues' -> aplana todos los players
-     - dict con 'players' -> se devuelve ese array
-     - dict genérico -> intenta encontrar arrays 'players' en valores
-    """
-    # Caso 1: ya es lista
-    if isinstance(tm_json, list):
-        print("[merge_data] Detectado formato TM: lista de jugadores")
-        return tm_json
-
-    # Caso 2: dict con 'players' directamente
-    if isinstance(tm_json, dict) and "players" in tm_json and isinstance(tm_json["players"], list):
-        print("[merge_data] Detectado formato TM: dict con clave 'players'")
-        return tm_json["players"]
-
-    # Caso 3: dict con 'leagues'
-    if isinstance(tm_json, dict) and "leagues" in tm_json:
-        leagues = tm_json["leagues"]
-        players: List[Dict[str, Any]] = []
-        if isinstance(leagues, dict):
-            print("[merge_data] Detectado formato TM: dict con 'leagues' (objeto)")
-            for _, data in leagues.items():
-                arr = (data or {}).get("players")
-                if isinstance(arr, list):
-                    players.extend(arr)
-        elif isinstance(leagues, list):
-            print("[merge_data] Detectado formato TM: dict con 'leagues' (lista)")
-            for league_entry in leagues:
-                arr = (league_entry or {}).get("players")
-                if isinstance(arr, list):
-                    players.extend(arr)
-        return players
-
-    # Caso 4: dict genérico -> buscar arrays 'players' en valores
+    if isinstance(tm_json, list): return tm_json
     if isinstance(tm_json, dict):
-        print("[merge_data] Formato TM genérico: intentamos localizar 'players' en sub-objetos")
-        players: List[Dict[str, Any]] = []
-        for _, v in tm_json.items():
-            if isinstance(v, dict) and "players" in v and isinstance(v["players"], list):
-                players.extend(v["players"])
-            elif isinstance(v, list):
-                for item in v:
-                    if isinstance(item, dict) and "players" in item and isinstance(item["players"], list):
-                        players.extend(item["players"])
+        if 'players' in tm_json and isinstance(tm_json['players'], list):
+            return tm_json['players']
+        if 'leagues' in tm_json:
+            leagues = tm_json['leagues']
+            players = []
+            for val in leagues.values():
+                arr = val.get('players') if isinstance(val, dict) else []
+                if isinstance(arr, list): players.extend(arr)
+            return players
+        players = []
+        for val in tm_json.values():
+            if isinstance(val, dict) and 'players' in val:
+                players.extend(val['players'])
         return players
-
-    print("[merge_data] Formato TM no reconocido: devolviendo lista vacía")
     return []
 
+# -------- Run --------
+def run():
+    fotmob = json.loads(FOTMOB_PATH.read_text(encoding="utf-8"))
+    tm_json = json.loads(TM_PATH.read_text(encoding="utf-8"))
+    tm_players = load_transfermarkt_players(tm_json)
 
-def run() -> Dict[str, int]:
-    # --- Cargar datos ---
-    if not FOTMOB_PATH.exists():
-        raise FileNotFoundError(f"No existe {FOTMOB_PATH}. Ejecuta collect_fotmob primero.")
-    if not TM_PATH.exists():
-        raise FileNotFoundError(f"No existe {TM_PATH}. Ejecuta collect_transfermarkt primero.")
-
-    fotmob: List[Dict[str, Any]] = json.loads(FOTMOB_PATH.read_text(encoding="utf-8"))
-    tm_json: Any = json.loads(TM_PATH.read_text(encoding="utf-8"))
-    tm_players: List[Dict[str, Any]] = load_transfermarkt_players(tm_json)
-
-    # --- Indexar TM por nombre limpio ---
-    tm_index: Dict[str, List[Dict[str, Any]]] = {}
+    tm_by_name = defaultdict(list)
+    index_por_apellido = defaultdict(list)
     for p in tm_players:
-        name = p.get("name") or ""
-        k = clean_text(name)
-        if not k:
-            continue
-        tm_index.setdefault(k, []).append(p)
+        cname = clean_name(p.get('name', ''))
+        ap = last_token(p.get('name', ''))
+        if cname: tm_by_name[cname].append(p)
+        if ap: index_por_apellido[ap].append(p)
 
-    # --- Inner join ---
-    combined: List[Dict[str, Any]] = []
-    misses_fm = 0
+    combined, not_found = [], []
 
     for p_fm in fotmob:
-        nombre_fm = p_fm.get("nombre") or ""
-        k = clean_text(nombre_fm)
-        if not k:
-            continue
-        tm_candidates = tm_index.get(k)
-        if not tm_candidates:
-            misses_fm += 1
+        cname_fm = clean_name(p_fm.get('nombre', ''))
+        candidatos = tm_by_name.get(cname_fm, [])
+
+        if not candidatos:
+            best_match = process.extractOne(
+                p_fm.get('nombre', ''),
+                [p.get('name', '') for p in tm_players],
+                scorer=fuzz.WRatio
+            )
+            if best_match and best_match[1] >= 99:
+                idx = [p.get('name', '') for p in tm_players].index(best_match[0])
+                candidatos = [tm_players[idx]]
+
+        if not candidatos:
+            not_found.append(p_fm)
             continue
 
-        p_tm = pick_best_tm_match(tm_candidates, p_fm.get("equipo"))
+        p_tm_best = max(candidatos, key=lambda p: score_candidato(p_fm, p))
+        tm_id = p_tm_best.get('profile_url') or p_tm_best.get('name')
 
-        # Construcción registro final (portero vs jugador)
-        if is_portero_tm(p_tm.get("main_position")):
+        if is_portero(p_tm_best):
             out = {
-                "nombre": p_fm.get("nombre"),
-                "equipo": p_fm.get("equipo") or p_tm.get("team_name"),
-                "liga": p_fm.get("liga"),
-                "pais": p_fm.get("pais"),
-                "temporada": p_fm.get("temporada") or p_tm.get("season"),
-                "url_jugador_fotmob": p_fm.get("url_jugador"),
-                "url_jugador_transfermarkt": p_tm.get("profile_url"),
-                "main_position": p_tm.get("main_position"),
-                "foot": p_tm.get("foot"),
-                "age": p_tm.get("age"),
-                "height": p_tm.get("height"),
-                "market_value": p_tm.get("market_value"),
-                "contract_details": p_tm.get("contract_details"),
-                "market_value_evolution": p_tm.get("market_value_evolution"),
-                "transfer_history": p_tm.get("transfer_history"),
-                "estadísticas": p_fm.get("estadísticas"),
-                "rasgos_portero": p_fm.get("rasgos_portero"),
+                **p_fm,
+                'url_jugador_transfermarkt': tm_id,
+                'main_position': p_tm_best.get('main_position'),
+                'foot': p_tm_best.get('foot'),
+                'age': p_tm_best.get('age'),
+                'height': p_tm_best.get('height'),
+                'market_value': p_tm_best.get('market_value'),
+                'contract_details': p_tm_best.get('contract_details'),
+                'market_value_evolution': p_tm_best.get('market_value_evolution'),
+                'transfer_history': p_tm_best.get('transfer_history'),
             }
         else:
             out = {
-                "nombre": p_fm.get("nombre"),
-                "equipo": p_fm.get("equipo") or p_tm.get("team_name"),
-                "liga": p_fm.get("liga"),
-                "pais": p_fm.get("pais"),
-                "temporada": p_fm.get("temporada") or p_tm.get("season"),
-                "url_jugador_fotmob": p_fm.get("url_jugador"),
-                "url_jugador_transfermarkt": p_tm.get("profile_url"),
-                "main_position": p_tm.get("main_position"),
-                "other_positions": p_tm.get("other_positions"),
-                "foot": p_tm.get("foot"),
-                "age": p_tm.get("age"),
-                "height": p_tm.get("height"),
-                "market_value": p_tm.get("market_value"),
-                "contract_details": p_tm.get("contract_details"),
-                "market_value_evolution": p_tm.get("market_value_evolution"),
-                "transfer_history": p_tm.get("transfer_history"),
-                "estadísticas": p_fm.get("estadísticas"),
-                "rasgos_jugador": p_fm.get("rasgos_jugador"),
+                **p_fm,
+                'url_jugador_transfermarkt': tm_id,
+                'main_position': p_tm_best.get('main_position'),
+                'other_positions': p_tm_best.get('other_positions'),
+                'foot': p_tm_best.get('foot'),
+                'age': p_tm_best.get('age'),
+                'height': p_tm_best.get('height'),
+                'market_value': p_tm_best.get('market_value'),
+                'contract_details': p_tm_best.get('contract_details'),
+                'market_value_evolution': p_tm_best.get('market_value_evolution'),
+                'transfer_history': p_tm_best.get('transfer_history'),
             }
         combined.append(out)
 
-    # --- Guardar combinada ---
-    OUT_COMBINADA.write_text(json.dumps(combined, ensure_ascii=False, indent=2), encoding="utf-8")
+    # -------- Recuperación avanzada --------
+    ya_emparejados_tm_ids = {p['url_jugador_transfermarkt'] for p in combined}
+    extra_matches = []
 
-    # --- Separar porteros / jugadores ---
-    porteros: List[Dict[str, Any]] = []
-    jugadores: List[Dict[str, Any]] = []
-    for p in combined:
-        if is_portero_tm(p.get("main_position")):
-            porteros.append(p)
-        else:
-            jugadores.append(p)
+    for p_fm in not_found:
+        nombre_fm = p_fm.get('nombre', '')
+        tokens_fm = tokenize(nombre_fm)
+        ap_fm = tokens_fm[-1] if tokens_fm else ''
+        candidatos = index_por_apellido.get(ap_fm, [])
 
+        mejores = []
+        for p_tm in candidatos:
+            tokens_tm = tokenize(p_tm.get('name', ''))
+            if not tokens_tm: continue
+            if nombre_es_apodo(nombre_fm, p_tm.get('name', '')) or \
+               (nombre_subtokens_con_apellido(tokens_fm, tokens_tm) and equipo_match(p_fm.get('equipo'), p_tm.get('team_name'))) or \
+               (nombre_tokens_parcial(tokens_fm, tokens_tm) and equipo_match(p_fm.get('equipo'), p_tm.get('team_name'))):
+                mejores.append((score_candidato(p_fm, p_tm), p_tm))
+
+        if not mejores:
+            continue
+
+        mejores.sort(key=lambda x: x[0], reverse=True)
+        _, p_tm_best = mejores[0]
+        tm_id = p_tm_best.get('profile_url') or p_tm_best.get('name')
+        if tm_id in ya_emparejados_tm_ids:
+            continue
+
+        ya_emparejados_tm_ids.add(tm_id)
+        is_gk = pos_bucket(p_tm_best.get('main_position')) == 'GK'
+        out = {
+            **p_fm,
+            'url_jugador_transfermarkt': tm_id,
+            'main_position': p_tm_best.get('main_position'),
+            'other_positions': p_tm_best.get('other_positions'),
+            'foot': p_tm_best.get('foot'),
+            'age': p_tm_best.get('age'),
+            'height': p_tm_best.get('height'),
+            'market_value': p_tm_best.get('market_value'),
+            'contract_details': p_tm_best.get('contract_details'),
+            'market_value_evolution': p_tm_best.get('market_value_evolution'),
+            'transfer_history': p_tm_best.get('transfer_history'),
+        }
+        extra_matches.append(out)
+
+    combined_total = combined + extra_matches
+    OUT_COMBINADA.write_text(json.dumps(combined_total, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    porteros = [p for p in combined_total if is_portero(p)]
+    jugadores = [p for p in combined_total if not is_portero(p)]
     OUT_PORTEROS.write_text(json.dumps(porteros, ensure_ascii=False, indent=2), encoding="utf-8")
     OUT_JUGADORES.write_text(json.dumps(jugadores, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    stats = {
-        "fotmob_total": len(fotmob),
-        "tm_total": len(tm_players),
-        "combinados": len(combined),
-        "fm_sin_match": misses_fm,
-        "porteros": len(porteros),
-        "jugadores": len(jugadores),
-    }
+    print(f"✅ TOTAL FINALES: {len(combined_total)} jugadores (porteros: {len(porteros)}, jugadores: {len(jugadores)})")
+    print(f"🧩 Usando recuperación avanzada: {len(extra_matches)} jugadores recuperados")
+    print(f"📁 OUT: {OUT_COMBINADA}")
+    print(f"📁 OUT: {OUT_PORTEROS}")
+    print(f"📁 OUT: {OUT_JUGADORES}")
+    print(f"📂 MERGED_DIR absoluto: {MERGED_DIR.resolve()}")
 
-    print(
-        f"[merge_data] fotmob={stats['fotmob_total']} tm={stats['tm_total']} "
-        f"-> combinados={stats['combinados']} (fm_sin_match={stats['fm_sin_match']}) | "
-        f"porteros={stats['porteros']} jugadores={stats['jugadores']}"
-    )
-    print(f"[merge_data] OUT: {OUT_COMBINADA}")
-    print(f"[merge_data] OUT: {OUT_PORTEROS}")
-    print(f"[merge_data] OUT: {OUT_JUGADORES}")
     return OUT_JUGADORES, OUT_PORTEROS
-
 
 if __name__ == "__main__":
     run()

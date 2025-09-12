@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import tempfile
 from typing import TypedDict, Literal
+import json
 
 import requests
 import plotly.io as pio
@@ -22,7 +23,7 @@ from scouting.agents.agent4 import GraphComparisonAgent
 # ================== ENV & KALEIDO ==================
 load_dotenv()  # lee .env en la raíz
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
-OPENAI_MODEL_SUPERVISOR = os.getenv("OPENAI_MODEL_SUPERVISOR", "gpt-4o-mini")
+OPENAI_MODEL_SUPERVISOR = os.getenv("OPENAI_MODEL_SUPERVISOR", "gpt-4o")
 
 #Configurar Chrome para Kaleido v1
 def _set_chromium_executable(path: str):
@@ -64,9 +65,22 @@ try:
 except Exception:
     pass
 
+#Para el ajuste de los idiomas
+def _json_loads_relaxed(s: str) -> dict:
+    try:
+        return json.loads(s)
+    except Exception:
+        s = s.replace("“","\"").replace("”","\"").replace("’","'")
+        try:
+            return json.loads(s)
+        except Exception:
+            return {}
+
 # ================== STATE ==================
 class PipelineState(TypedDict, total=False):
     query: str
+    query_norm: str           # español normalizado por el supervisor
+    lang: Literal["es","en","fr","it","de"]  # idioma original detectado
     tipo: Literal["jugador", "portero"]
     df_pre_filtrado: object
     df_filtrado: object
@@ -77,79 +91,178 @@ class PipelineState(TypedDict, total=False):
     decision: str
     chart_paths: list[str]
 
+
+
 # ================== NODES ==================
 def nodo_supervisor(state: PipelineState) -> PipelineState:
-    prompt = ChatPromptTemplate.from_template(
-        """Decide si la siguiente consulta trata sobre scouting de fútbol (jugadores/porteros, fichajes, estadísticas, rendimiento).
-Si SÍ: responde 'ok'. Si NO: responde 'fin'.
+    
+    prompt = ChatPromptTemplate.from_messages([
+    ("system",
+     "Eres un supervisor de un sistema de scouting de fútbol. "
+     "Devuelve SOLO JSON válido con las claves: "
+     "domain ('ok'|'fin'), lang ('es'|'en'|'fr'|'it'|'de'), query_es (texto).\n\n"
+     "REGLAS DURAS:\n"
+     "1) SOLO están permitidas consultas de scouting de fútbol de JUGADORES o PORTEROS. "
+     "Incluyen búsquedas sobre posiciones (extremo, lateral, portero, delantero, mediocentro, etc.), "
+     "cualidades futbolísticas (regate, gol, centros, duelos, altura, pie dominante, valor de mercado, contrato, edad, etc.) "
+     "y métricas estadísticas (xG, xA, percentiles, por 90, etc.).\n"
+     "2) Si la consulta trata de CUALQUIER OTRO tema (política, música, recetas, marcas, fórmulas químicas, clima, etc.), "
+     "entonces siempre responde con domain='fin'.\n"
+     "3) Decide 'lang' únicamente por el texto original (es/en/fr/it/de).\n"
+     "4) Si domain='ok' y lang!='es', traduce literalmente al español neutro en 'query_es', "
+     "sin cambiar cifras, unidades, comparadores, símbolos (€/%), ni nombres propios. "
+     "Normaliza roles a español (winger→extremo, fullback→lateral, holding midfielder→mediocentro defensivo, box-to-box→interior).\n"
+     "5) Si el original ya está en español (lang='es'), 'query_es' debe ser EXACTAMENTE el original (sin reescribirlo).\n\n"
+     "EJEMPLOS:\n"
+     "EJEMPLOS:\n"
+    "- 'Extremo regateador…' → {{\"domain\": \"ok\", \"lang\": \"es\", \"query_es\": \"Extremo regateador…\"}}\n"
+    "- 'Best goalkeeper…' → {{\"domain\": \"ok\", \"lang\": \"en\", \"query_es\": \"Portero menor de 25 con buena distribución\"}}\n"
+    "- '¿Cuál es la fórmula de la Coca-Cola?' → {{\"domain\": \"fin\", \"lang\": \"es\", \"query_es\": \"¿Cuál es la fórmula de la Coca-Cola?\"}}\n"
+    "- 'Tiempo mañana en Madrid' → {{\"domain\": \"fin\", \"lang\": \"es\", \"query_es\": \"Tiempo mañana en Madrid\"}}\n"
+    ),
+    ("human",
+     "Decide dominio e idioma (es/en/fr/it/de) y, si procede, TRADUCE:\n\n"
+     "Consulta (texto ORIGINAL):\n----------\n{query}\n----------\n\n"
+     "Responde SOLO JSON válido.")
+    ])
 
-Consulta:
-----------
-{query}
-----------
+    llm = ChatOpenAI(model=OPENAI_MODEL_SUPERVISOR, temperature=0.1)
+    raw = (prompt | llm).invoke({"query": state["query"]}).content.strip()
+    data = _json_loads_relaxed(raw)
 
-Tu respuesta (ok/fin):"""
-    )
-    llm = ChatOpenAI(model=OPENAI_MODEL_SUPERVISOR, temperature=0)
-    decision = (prompt | llm).invoke({"query": state["query"]}).content.strip().lower()
-    print(f"SUPERVISOR: {decision}")
-    return {**state, "decision": decision[:3]}  # 'ok' o 'fin'
+    decision = (data.get("domain") or "fin").lower()
+    lang = (data.get("lang") or "es").lower()
+    if lang not in ("es","en","fr","it","de"):
+        lang = "es"
+    query_es = data.get("query_es") or state["query"]
+
+    print(f"[SUPERVISOR] domain={decision} lang={lang} query_es={query_es[:140]}...")
+    return {**state, "decision": decision, "lang": lang, "query_norm": query_es}
 
 def supervisor_decision(state: PipelineState) -> str:
     return "agente0" if state.get("decision") == "ok" else "nodo_send_to_telegram"
 
 def nodo_agente0(state: PipelineState) -> PipelineState:
     a0 = Agente0VectorRetriever()
-    df_pre, tipo = a0.recuperar(state["query"])
+    df_pre, tipo = a0.recuperar(state["query_norm"])
     return {**state, "df_pre_filtrado": df_pre, "tipo": tipo}
 
 def nodo_agente1(state: PipelineState) -> PipelineState:
     a1 = Agente1HardFilter()
-    df_filt, tipo = a1.filtrar(state["df_pre_filtrado"], state["query"], state["tipo"])
+    df_filt, tipo = a1.filtrar(state["df_pre_filtrado"], state["query_norm"], state["tipo"])
     return {**state, "df_filtrado": df_filt, "tipo": tipo}
 
 def nodo_agente2(state: PipelineState) -> PipelineState:
     a2 = ScoreEvaluatorAgent()
-    resultados, df_top3 = a2.score_dataframe(state["df_filtrado"], state["query"], state["tipo"])
+    resultados, df_top3 = a2.score_dataframe(state["df_filtrado"], state["query_norm"], state["tipo"])
     return {**state, "resultados": resultados, "df_top3": df_top3}
 
+
+def _write_fallback_image(path: str, text: str, mode: str = "PNG"):
+    """
+    Crea una imagen sencilla con un mensaje de fallback para que Telegram reciba algo
+    y podamos diagnosticar sin mirar logs.
+    """
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+        W, H = 1200, 600
+        img = Image.new("RGB", (W, H), (30, 30, 30))
+        draw = ImageDraw.Draw(img)
+        try:
+            font_title = ImageFont.load_default()
+        except Exception:
+            font_title = None
+        # título
+        draw.text((W//2, 80), "ScoutingInteligente charts", fill=(230, 230, 230),
+                  anchor="mm", font=font_title)
+        # cuerpo
+        draw.text((W//2, H//2), f"fallback: {text}", fill=(200, 200, 200),
+                  anchor="mm", font=font_title, align="center")
+        # nota
+        draw.text((W//2, H-40), "Se envía imagen de fallback para diagnóstico",
+                  fill=(150, 150, 150), anchor="mm", font=font_title)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        img.save(path, format=mode)
+        return path
+    except Exception:
+        # último recurso: crear un archivo vacío para que el nodo no pete
+        try:
+            open(path, "wb").close()
+        except Exception:
+            pass
+        return path
+
+
 def nodo_resultados_completos(state: PipelineState) -> PipelineState:
-    a3 = Agente3Explanation()
+    a3 = Agente3Explanation(lang=state.get("lang","es"))
     a4 = GraphComparisonAgent()
 
     explicacion = a3.explicar_resultados(state["query"], state["resultados"])
-    fig1, fig2 = a4.graph_comparison(state["resultados"])
-
-    # Guarda PNGs en una ruta temporal compatible con Windows
     tmpdir = tempfile.gettempdir()
-    chart1_path = os.path.join(tmpdir, "chart_percentiles.png")
-    chart2_path = os.path.join(tmpdir, "chart_percentiles_per90.png")
-    wrote_png = False
-    try:
-        # Intento PNG (requiere Chrome/Kaleido v1)
-        pio.write_image(fig1, chart1_path, scale=2, width=1200, height=900)
-        pio.write_image(fig2, chart2_path, scale=2, width=1200, height=900)
-        wrote_png = True
-    except Exception as e:
-        print("[charts] write_image falló, uso HTML fallback:", e)
-        # Fallback HTML (se puede enviar como documento o ignorar en Telegram)
-        chart1_path = "/tmp/chart_percentiles.html"
-        chart2_path = "/tmp/chart_percentiles_per90.html"
-        pio.write_html(fig1, chart1_path, include_plotlyjs="cdn", full_html=True)
-        pio.write_html(fig2, chart2_path, include_plotlyjs="cdn", full_html=True)
 
-    print("TIPO CHART1:", type(fig1))
-    print("TIPO CHART2:", type(fig2))
+    # --- Collage de radares (PNG) ---
+    radar_collage_path = os.path.join(tmpdir, "radars_collage.png")
+    try:
+        real_radar_path = a4.build_radar_collage(
+            state["resultados"],
+            out_dir=tmpdir,
+            filename="radars_collage.png",
+        )
+        radar_collage_path = real_radar_path or radar_collage_path
+        print("[charts] radar collage OK:", radar_collage_path)
+    except Exception as e:
+        msg = f"radars_collage failed: {e.__class__.__name__}"
+        print("[charts]", msg)
+        radar_collage_path = _write_fallback_image(radar_collage_path, msg, mode="PNG")
+
+    # --- Collage de pizzas (JPG, más ligero) ---
+    pizza_collage_path = os.path.join(tmpdir, "profiles_comparison.jpg")
+    try:
+        real_pizza_path, _ = a4.build_pizza_collage(
+            state["resultados"],
+            out_dir=tmpdir,
+            filename_collage="profiles_comparison.jpg",
+            save_individual=False,
+            layout="column",
+            dpi=180
+        )
+        pizza_collage_path = real_pizza_path or pizza_collage_path
+        print("[charts] pizza collage OK:", pizza_collage_path)
+    except Exception as e:
+        msg = f"pizza_collage failed: {e.__class__.__name__}"
+        print("[charts]", msg)
+        pizza_collage_path = _write_fallback_image(pizza_collage_path, msg, mode="JPEG")
+
+    # --- Clamp de existencia y lista final ---
+    chart_paths = [p for p in [radar_collage_path, pizza_collage_path] if p and os.path.exists(p)]
+    print("[charts] chart_paths finales:", chart_paths)
 
     return {
         **state,
         "explicacion": explicacion,
-        "chart_paths": [p for p in [chart1_path, chart2_path] if os.path.exists(p)]
+        "chart_paths": chart_paths
     }
+
 
 def nodo_send_to_telegram(state: PipelineState) -> PipelineState:
     chat_id = state.get("chat_id")
-    mensaje = state.get("explicacion") or "Lo siento, pero solo respondo preguntas sobre scouting de fútbol."
+    lang = state.get("lang","es")
+    if state.get("decision") != "ok":
+        mensaje = {
+            "en": "Sorry, I only answer football scouting queries (players/goalkeepers).",
+            "fr": "Désolé, je ne réponds qu’aux requêtes de scouting de football (joueurs/gardiens).",
+            "it": "Spiacente, rispondo solo a richieste di scouting calcistico (giocatori/portieri).",
+            "de": "Sorry, ich beantworte nur Scouting-Anfragen im Fußball (Feldspieler/Torhüter).",
+            "es": "Lo siento, pero solo respondo preguntas sobre scouting de fútbol."
+        }.get(lang, "Lo siento, pero solo respondo preguntas sobre scouting de fútbol.")
+    else:
+        mensaje = state.get("explicacion") or {
+            "en": "Sorry, an unexpected error occurred.",
+            "fr": "Désolé, une erreur inattendue s’est produite.",
+            "it": "Spiacente, si è verificato un errore imprevisto.",
+            "de": "Entschuldigung, es ist ein unerwarteter Fehler aufgetreten.",
+            "es": "Lo siento, se produjo un error inesperado."
+        }.get(lang, "Lo siento, se produjo un error inesperado.")
     if not BOT_TOKEN or not chat_id:
         print("[WARN] Falta TELEGRAM_BOT_TOKEN o chat_id. No se envía a Telegram.")
         print("\n=== MENSAJE ===\n", mensaje)
@@ -166,11 +279,22 @@ def nodo_send_to_telegram(state: PipelineState) -> PipelineState:
     # gráficos (si hay)
     for path in state.get("chart_paths", []):
         try:
-            if path.lower().endswith(".png"):
+            ext = os.path.splitext(path)[1].lower()
+            if ext in [".png", ".jpg", ".jpeg"] and os.path.exists(path):
+                print(f"[telegram] enviando imagen: {path}")
                 with open(path, "rb") as f:
-                    requests.post(f"{base_url}/sendPhoto", data={"chat_id": chat_id}, files={"photo": f})
+                    resp = requests.post(
+                        f"{base_url}/sendPhoto",
+                        data={"chat_id": chat_id},
+                        files={"photo": f}
+                    )
+                print(f"[telegram] respuesta Telegram {resp.status_code}: {resp.text[:200]}")
+            else:
+                print(f"[telegram] no se envía {path} (no existe o no es imagen)")
         except Exception as e:
             print(f"[telegram] error enviando imagen {path}: {e}")
+
+
 
     return state
 

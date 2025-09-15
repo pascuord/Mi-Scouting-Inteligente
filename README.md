@@ -56,7 +56,7 @@ proyectosjg/
 
 1. **Clonar repo y entorno**
 ```bash
-   git clone https://github.com/tuusuario/ScoutingInteligenteBot.git
+   git clone https://github.com/Scouting-Inteligente-Bot/ScoutingInteligenteBot.git
    cd ScoutingInteligenteBot
    cp .env.example .env
    # editar .env con tus claves
@@ -500,9 +500,8 @@ Si no existe, reconstruye la imagen del bot con el bloque de instalación de Chr
 
 ---     
 
-## Seguridad y tamaño
+## Seguridad
 - No se *commitean* `.env` ni `data/`.
-- Si necesitas versionar datasets, usa Git LFS o almacén externo.
 
 ---
 

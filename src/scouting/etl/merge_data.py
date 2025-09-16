@@ -46,6 +46,37 @@ APODOS_HARDCODE = {
     'jose': 'jose maria'
 }
 
+# --- Liga stats fix (nivel raíz) ---
+BASES_LIGA_GENERICAS = {"Premier League", "Serie A", "Bundesliga"}
+_LIGA_PARENS_RE = re.compile(r"\s*\(.*\)\s*$")
+
+def _base_name(s: str) -> str:
+    s = (s or "").strip()
+    return _LIGA_PARENS_RE.sub("", s)
+
+def _has_2526(transfer_history: list[dict] | None) -> bool:
+    th = transfer_history or []
+    return any((m or {}).get("season") == "25/26" for m in th)
+
+def _should_override_liga_stats(liga: str, liga_stats: str, transfer_history: list[dict] | None) -> bool:
+    # Condiciones: misma familia (Premier/Serie A/Bundesliga), liga con paréntesis (p.ej. "(Rusia)"),
+    # y NO hay movimientos en temporada 25/26
+    if not liga or not liga_stats:
+        return False
+    base_liga = _base_name(liga)
+    base_stats = _base_name(liga_stats)
+    liga_tiene_paren = "(" in liga and ")" in liga
+    misma_familia = base_liga in BASES_LIGA_GENERICAS and base_stats in BASES_LIGA_GENERICAS
+    return misma_familia and liga_tiene_paren and not _has_2526(transfer_history)
+
+def _apply_liga_stats_patch_out(out: dict, p_fm: dict, p_tm_best: dict) -> None:
+    liga = p_fm.get("liga") or out.get("liga")
+    liga_stats = p_fm.get("liga_stats") or out.get("liga_stats")
+    th = p_tm_best.get("transfer_history") or out.get("transfer_history")
+    if _should_override_liga_stats(liga, liga_stats, th):
+        out["liga_stats"] = liga  # e.g., "Premier League (Rusia)"
+
+
 def clean_name(name):
     if not name: return ""
     name = unidecode.unidecode(name.lower())
@@ -169,6 +200,7 @@ def run():
                 'market_value_evolution': p_tm_best.get('market_value_evolution'),
                 'transfer_history': p_tm_best.get('transfer_history'),
             }
+            _apply_liga_stats_patch_out(out, p_fm, p_tm_best)
         else:
             out = {
                 **p_fm,
@@ -183,6 +215,7 @@ def run():
                 'market_value_evolution': p_tm_best.get('market_value_evolution'),
                 'transfer_history': p_tm_best.get('transfer_history'),
             }
+            _apply_liga_stats_patch_out(out, p_fm, p_tm_best)
         combined.append(out)
 
     # -------- Recuperación avanzada --------
@@ -228,6 +261,7 @@ def run():
             'market_value_evolution': p_tm_best.get('market_value_evolution'),
             'transfer_history': p_tm_best.get('transfer_history'),
         }
+        _apply_liga_stats_patch_out(out, p_fm, p_tm_best)
         extra_matches.append(out)
 
     combined_total = combined + extra_matches

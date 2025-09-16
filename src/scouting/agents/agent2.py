@@ -106,48 +106,60 @@ LIGA_COEFICIENTES = {
     "Serie A": 1.00,
     "Ligue 1": 1.00,
 
-    # 🟦 Nivel 2 – Ligas casi top (0.90–0.95)
+    # 🟦 Nivel 2 – Casi top
     "Eredivisie": 0.92,
     "Liga Portugal": 0.92,
     "Serie A (Brasil)": 0.92,
-    "Liga Profesional": 0.90,   # Argentina
-    "First Division A": 0.90,   # Bélgica
-    "Championship": 0.90,
+    "Liga Profesional": 0.90,     # Argentina
+    "First Division A": 0.90,     # Bélgica
+    "Championship": 0.90,         
     "Saudi Pro League": 0.88,
 
-    # 🟨 Nivel 3 – Ligas competitivas medias (0.80–0.85)
+    # 🟨 Nivel 3 – Competitivas medias
     "Super Lig (Turquía)": 0.85,
-    "Super League 1 (Grecia)": 0.84,
-    "Ekstraklasa": 0.80,
-    "Super League (Suiza)": 0.80,
     "Liga MX (Mexico)": 0.85,
-    "Primera A (Colombia)": 0.82,
+    "Super League 1 (Grecia)": 0.84,
+    "Premier League (Rusia)": 0.84,    
+    "Super League (Suiza)": 0.80,
+    "Ekstraklasa": 0.80,
     "K League 1(Corea del Sur)": 0.80,
     "J. League (Japón)": 0.80,
-    "Premier League (Egipto)": 0.78,
+    "Premiership (Escocia)": 0.80,     
     "Allsvenskan": 0.78,
     "Eliteserien": 0.78,
     "1. Division (Dinamarca)": 0.78,
+    "Premier League (Egipto)": 0.78,
+    "Primera A (Colombia)": 0.82,
+    "Bundesliga (Austria)": 0.80,      
+    "HNL (Croacia)": 0.75,             
+    "Primera Division (Chile)": 0.78,  
 
-    # 🟧 Nivel 4 – Ligas menores / desarrollo (0.60–0.78)
+    # 🟧 Nivel 4 – Menores / desarrollo
     "Ligue 2": 0.78,
     "Serie B": 0.78,
     "LaLiga2": 0.78,
     "2. Bundesliga": 0.78,
-    "Veikkausliiga": 0.70,
-    "Premier Division (Irlanda)": 0.68,
-    "Challenge League (Suiza)": 0.70,
-    "3. Liga": 0.70,
     "MLS": 0.78,
+    "K League 2 (Corea del Sur)": 0.70,
     "Super League (China)": 0.70,
+    "Veikkausliiga": 0.70,
+    "3. Liga": 0.70,
+    "Premier Division (Irlanda)": 0.68,
+    "A-League": 0.65,
     "USL Championship": 0.65,
     "USL League One": 0.60,
     "Indian Super League": 0.62,
-    "A-League": 0.65,
     "Thai League": 0.60,
     "Premier League (Canada)": 0.62,
-    "K League 2 (Corea del Sur)": 0.70,
     "Besta deildin": 0.55,
+
+    # 🟨 Otras segundas y terceras europeas específicas
+    "Eerste Divisie": 0.74,           
+    "Championship (Escocia)": 0.70,  
+    "League One": 0.72,               
+    "League Two": 0.66,               
+    "Serie B (Brasil)": 0.78,         
+    "Challenge League (Suiza)": 0.70,
 }
 
 

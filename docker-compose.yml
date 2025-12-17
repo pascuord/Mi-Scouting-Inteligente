@@ -6,6 +6,8 @@ services:
   etl:
     image: proyectosjg:local
     env_file: .env
+    environment: 
+    - PYTHONPATH=/app/src
     command: ["scouting-etl", "--skip-fotmob", "--skip-tm", "--skip-merge"]
     volumes:
       - ./data:/data

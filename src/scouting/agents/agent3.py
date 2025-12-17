@@ -104,7 +104,7 @@ def _fmt_linea_metricas(nombre_stat: str, datos: Dict[str, Any], prefer_per90: b
     return f"- {nombre_stat}: s/d, peso {peso:.3f}"
 
 class Agente3Explanation:
-    def __init__(self, model: str = "gpt-4o-mini", lang: str = "es"):
+    def __init__(self, model: str = "gpt-4o", lang: str = "es"):
         # coge OPENAI_API_KEY del entorno (.env)
         self.client = OpenAI()
         self.model = model

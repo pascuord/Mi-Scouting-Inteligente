@@ -211,7 +211,9 @@ ALIAS_TO_NACIONALIDAD = {
   "holandes": "Países Bajos",
   "holandeses": "Países Bajos",
   "neerlandes": "Países Bajos",
-  "neerlandeses": "Países Bajos"
+  "neerlandeses": "Países Bajos",
+  "irlandes": "Irlanda",
+  "irlandés": "Irlanda"
 }
 
 LEAGUE_SYNONYMS = {
@@ -591,14 +593,14 @@ class Agente1HardFilter:
             "full-back": ["lateral ","carrilero ","wing-back"],
             "left midfield": ["carrilero izquierdo","wing-back izquierdo"],
             "right midfield": ["carrilero derecho", "wing-back derecho"],
-            "defensive midfield": ["pivote","mediocentro defensivo","centrocampista defensivo","mediocampista defensivo","volante de contencion","volante de contención","cinco"],
-            "central midfield": ["mediocentro","centrocampista","mediocampista","interior","medio"],
-            "attacking midfield": ["mediapunta","enganche","trequartista","diez","centrocampista ofensivo","mediocampista ofensivo"],
+            "defensive midfield": ["pivote","mediocentro defensivo","centrocampista defensivo","mediocampista defensivo","volante de contencion","volante de contención","cinco", "centrocampista"],
+            "central midfield": ["mediocentro","centrocampista","mediocampista","interior","medio",],
+            "attacking midfield": ["mediapunta","enganche","trequartista","diez","centrocampista ofensivo","mediocampista ofensivo", "centrocampista"],
             "left winger": ["extremo izquierdo","ala izquierda"],
             "right winger": ["extremo derecho","ala derecha"],
             "winger": ["extremo","banda","carrilero"],
-            "second striker": ["segundo delantero","media punta"],
-            "centre-forward": ["delantero centro","punta","nueve","9","centrodelantero"],
+            "second striker": ["segundo delantero","mediapunta"],
+            "centre-forward": ["delantero centro","nueve","9","centrodelantero"],
             "forward": ["delantero","atacante","ariete"],
             "goalkeeper": ["portero","arquero","guardameta","keeper"]
         }
@@ -727,10 +729,17 @@ class Agente1HardFilter:
                 if canon: targets.add(canon)
 
         # Búsqueda ampliada en toda la query
-        for token in q.split():
+        tokens = q.split()
+        for i, token in enumerate(tokens):
             canon = _canon_country_token(token)
             if canon:
+                # Omite país si aparece en contexto de liga/ubicación (ej. "en <país>" o "liga <país>"):
+                if i > 0 and tokens[i-1] in {"en", "jugando", "juegue"}:
+                    continue
+                if i > 1 and tokens[i-2] == "liga":
+                    continue
                 targets.add(canon)
+
 
 
         return list(targets)
@@ -1011,28 +1020,42 @@ class Agente1HardFilter:
 
         # ---- País de la liga (solo si no contradice ligas o si no hay ligas) ----
         paises_liga = self.extraer_paises_de_liga(query)
-        if self.DEBUG: print(f"[A1][PaisLiga] detectados={paises_liga}")
-        if "pais" in df.columns and paises_liga:
-            aplicar = True
-            if ligas:
-                # si hay ligas explícitas, comprueba consistencia
-                ligas_paises = { LEAGUE_TO_COUNTRY.get(l, None) for l in ligas }
-                ligas_paises.discard(None)
-                if ligas_paises and not any(p in ligas_paises for p in paises_liga):
-                    # contradicción: priorizamos ligas explícitas y NO aplicamos pais
-                    aplicar = False
-            if aplicar:
-                # filtra por país (normalizando)
-                df = df.with_columns(pl.col("pais").cast(pl.Utf8, strict=False).str.to_lowercase().alias("pais_lower"))
-                target_variants = set()
-                for canon in paises_liga:
-                    target_variants |= ALIAS_TO_NACIONALIDAD.get(canon, set())
-                target_variants_norm = { _norm_text(v) for v in target_variants }
-                antes = df.height
-                df = df.filter(pl.col("pais_lower").map_elements(lambda s: _norm_text(s or "") in target_variants_norm, return_dtype=pl.Boolean))
-                if self.DEBUG: print(f"[A1][PaisLiga] filtro: {antes} -> {df.height}")
-            else:
-                if self.DEBUG: print("[A1][PaisLiga] omitido por contradiccion con ligas explicitas")
+        
+
+        def filtrar_por_pais_liga(df, paises_liga: list[str], campo_df: str = "pais") -> tuple:
+            """
+            Filtra el DataFrame por país de la liga, usando los alias definidos en ALIAS_TO_NACIONALIDAD.
+            Retorna (df_filtrado, lista_paises_detectados)
+            """
+            # Construir mapa invertido solo una vez (alias normalizado → nombre canónico)
+            NOMBRE_NORMALIZADO_TO_CANON = {}
+            for k, v in ALIAS_TO_NACIONALIDAD.items():
+                norm_k = _norm_text(k)
+                norm_v = _norm_text(v)
+                NOMBRE_NORMALIZADO_TO_CANON[norm_k] = v
+                NOMBRE_NORMALIZADO_TO_CANON[norm_v] = v  # Incluimos también el valor canónico
+
+            # Normalizar entrada y resolver a canon
+            canon_targets = set()
+            for p in paises_liga:
+                canon = NOMBRE_NORMALIZADO_TO_CANON.get(_norm_text(p))
+                if canon:
+                    canon_targets.add(canon)
+
+            if not canon_targets:
+                if self.DEBUG: print("[A1][PaisLiga] sin targets detectados: no se filtra por país")
+                return df, []
+
+
+            df_filtrado = df.filter(df[campo_df].is_in(canon_targets))
+            return df_filtrado, list(canon_targets)
+        
+        # paises_liga detectado antes por Agente1
+        df, paises_detectados = filtrar_por_pais_liga(df, paises_liga)
+        if self.DEBUG: print(f"[A1][PaisLiga] detectados={paises_detectados}")
+        if self.DEBUG: print(f"[A1][PaisLiga] filtro: {antes} -> {df.height}")
+        else:
+           if self.DEBUG: print("[A1][PaisLiga] omitido por contradiccion con ligas explicitas")
 
 
         print(f"Agente 1: Filtrados {df.height} jugadores tras aplicar filtros clave.")

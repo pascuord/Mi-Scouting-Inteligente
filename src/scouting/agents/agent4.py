@@ -142,7 +142,7 @@ class GraphComparisonAgent:
     Construye dos gráficos radar (percentil y percentil_per90) para los 3 jugadores top
     y (NUEVO) un collage 3×pizza de perfil (resumen por bloques) con reglas de posición.
     """
-    def __init__(self, per90_minutes_threshold: int = 750) -> None:
+    def __init__(self, per90_minutes_threshold: int = 300) -> None:     #Este lo tenemos que ir revisando continuamente. igual mediados de enero 450, finales de febrero 600, inicios abril 750, finales mayo 1000
         self.per90_minutes_threshold = per90_minutes_threshold
 
         # fuentes (solo si hay mplsoccer)

@@ -15,7 +15,8 @@ if str(ROOT) not in sys.path:
 
 # Ahora las imports absolutas funcionan en ambos casos
 from src.scouting.etl.collect_fotmob import main_async as fotmob_main_async
-from src.scouting.etl.collect_transfermarkt import run as tm_run
+from scouting.etl.collect_transfermarkt import run as tm_run
+
 from src.scouting.etl.merge_data import run as merge_run
 from src.scouting.etl.vector_store_indexing import run as index_run
 

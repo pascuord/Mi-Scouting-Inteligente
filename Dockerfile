@@ -38,13 +38,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Instalamos el proyecto y dependencias
 # (añade aquí lo que ya usas en el entorno)
-RUN pip install -e . \
-    && pip install \
-       python-dotenv langgraph langchain-openai \
-       plotly kaleido \
-       sentence-transformers faiss-cpu polars unidecode aiohttp bs4 requests rapidfuzz \
-       mplsoccer==1.2.2 Pillow>=10.3 matplotlib>=3.8 numpy>=1.26 \
-       brotli lxml
+RUN python -m pip install --upgrade pip setuptools wheel
+# 1) deps primero
+RUN pip install \
+    python-dotenv langgraph langchain-openai \
+    plotly kaleido \
+    sentence-transformers faiss-cpu polars unidecode aiohttp bs4 requests rapidfuzz \
+    mplsoccer==1.2.2 Pillow>=10.3 matplotlib>=3.8 numpy>=1.26 \
+    brotli lxml
+# 2) y AHORA la editable, la última
+RUN pip install -e .
+
 
 # (Opcional pero recomendable) Pre-descargar el modelo de embeddings para no hacerlo en arranque
 #RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('intfloat/multilingual-e5-base')"

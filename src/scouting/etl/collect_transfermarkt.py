@@ -1,43 +1,109 @@
 # src/scouting/etl/collect_transfermarkt.py
 """
-Scraper Transfermarkt adaptado a entorno local:
-- Guardado en data/raw y checkpoints por liga en data/interim
-- Reintentos robustos, pausas aleatorias
+Scraper Transfermarkt (rápido y robusto):
+- RateLimiter global (RPS) en vez de sleeps por todas partes
+- Paralelismo con ThreadPool:
+  - perfiles HTML (altura/pie/posiciones/contrato)
+  - CEAPI JSON (market value evolution, transfer history)
+- Checkpoint incremental por equipo (reanuda si Colab peta)
 - Sin pandas (solo JSON)
 """
+
 from __future__ import annotations
+
 import os
 import re
 import json
 import time
 import random
+import argparse
+import threading
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 import unidecode
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 
-# --------- Config básica por .env ---------
+# ==== Config =====
 load_dotenv()
-RAW_DIR = os.getenv("RAW_DIR", "data/raw")
-INTERIM_DIR = os.getenv("INTERIM_DIR", "data/interim")
 
-os.makedirs(RAW_DIR, exist_ok=True)
-os.makedirs(INTERIM_DIR, exist_ok=True)
+def get_absolute_path(path_str: str, default: str | Path) -> Path:
+    p = Path(path_str)
+    # Si es relativo, interpretarlo como absoluto dentro del contenedor (en /data)
+    return p if p.is_absolute() else Path(default)
 
-RAW_OUT = os.path.join(RAW_DIR, "db_transfermarkt.json")
-CHECKPOINT_TEMPLATE = os.path.join(INTERIM_DIR, "tm_{league}_jugadores.json")
+DATA_DIR = get_absolute_path(os.getenv("DATA_DIR", "/data"), "/data")
+RAW_DIR = get_absolute_path(os.getenv("RAW_DIR", str(DATA_DIR / "raw")), DATA_DIR / "raw")
+INTERIM_DIR = get_absolute_path(os.getenv("INTERIM_DIR", str(DATA_DIR / "interim")), DATA_DIR / "interim")
+
+RAW_DIR.mkdir(parents=True, exist_ok=True)
+INTERIM_DIR.mkdir(parents=True, exist_ok=True)
+
+RAW_OUT = RAW_DIR / "db_transfermarkt.json"
+CHECKPOINT_TEMPLATE = INTERIM_DIR / "tm_{league}_jugadores.json"
 
 
-def _sleep(a: float, b: float) -> None:
-    """Pausa respetuosa aleatoria entre [a, b] segundos."""
-    time.sleep(random.uniform(a, b))
+# ---------------- Rate limiter ----------------
+class RateLimiter:
+    """
+    Limitador global de requests: garantiza un máximo de RPS total
+    incluso con múltiples hilos. Añade un jitter mínimo para no ser metronómico.
+    """
+    def __init__(self, rps: float):
+        self.min_interval = 1.0 / max(rps, 0.01)
+        self.lock = threading.Lock()
+        self.next_allowed = time.monotonic()
+
+    def wait(self) -> None:
+        with self.lock:
+            now = time.monotonic()
+            if now < self.next_allowed:
+                sleep_s = self.next_allowed - now
+                self.next_allowed += self.min_interval
+            else:
+                sleep_s = 0.0
+                self.next_allowed = now + self.min_interval
+
+        if sleep_s > 0:
+            time.sleep(sleep_s)
+        time.sleep(random.uniform(0.0, 0.05))  # jitter pequeño
 
 
+_thread_local = threading.local()
+
+def _get_thread_session(headers: dict) -> requests.Session:
+    """
+    Session por hilo (requests.Session no es 100% thread-safe si la compartes).
+    """
+    s = getattr(_thread_local, "session", None)
+    if s is None:
+        s = requests.Session()
+        s.headers.update(headers)
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=64,
+            pool_maxsize=64,
+            max_retries=0  # reintentos los controlamos nosotros
+        )
+        s.mount("https://", adapter)
+        s.mount("http://", adapter)
+        _thread_local.session = s
+    return s
+
+
+# ---------------- Scraper ----------------
 class TransfermarktMassiveScraper:
-    def __init__(self):
+    def __init__(
+        self,
+        rps: float = 1.2,
+        workers_profiles: int = 6,
+        workers_ceapi: int = 12,
+        timeout: Tuple[float, float] = (10.0, 35.0),  # (connect, read)
+        resume: bool = True,
+    ):
         self.headers = {
             "User-Agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -49,13 +115,19 @@ class TransfermarktMassiveScraper:
             "Connection": "keep-alive",
         }
         self.base_url = "https://www.transfermarkt.com"
-        self.session = requests.Session()
-        self.session.headers.update(self.headers)
+        self.limiter = RateLimiter(rps)
+        self.workers_profiles = max(1, int(workers_profiles))
+        self.workers_ceapi = max(1, int(workers_ceapi))
+        self.timeout = timeout
+        self.resume = resume
 
-        # Ligas principales (puedes ampliar cuando quieras)
+        # cache por liga: cuando detectamos qué saison_id funciona para una liga, lo reutilizamos
+        self._league_saison_cache: dict[str, str] = {}
+
+        # Ligas (tu lista)
         self.leagues: Dict[str, Dict[str, str]] = {
             "LaLiga": {"id": "ES1", "name": "laliga"},
-            "LaLiga2":{"id": "ES2", "name": "laliga2"},
+            "LaLiga2": {"id": "ES2", "name": "laliga2"},
             "Premier League": {"id": "GB1", "name": "premier-league"},
             "Championship": {"id": "GB2", "name": "championship"},
             "League One": {"id": "GB3", "name": "league-one"},
@@ -104,27 +176,80 @@ class TransfermarktMassiveScraper:
             "Super League (Suiza)": {"id": "C1", "name": "super-league"},
             "Challenge League (Suiza)": {"id": "C2", "name": "challenge-league"},
             "Thai League": {"id": "THA1", "name": "thai-league"},
-            "Super Lig (Turquía)": {"id": "TR1", "name": "super-lig"}
+            "Super Lig (Turquía)": {"id": "TR1", "name": "super-lig"},
         }
 
-    # ---------------- Utilidades ----------------
-    def make_request(self, url: str, max_retries: int = 8) -> BeautifulSoup:
-        """GET con reintentos y pequeñas pausas"""
-        full_url = url if url.startswith("http") else f"{self.base_url}{url}"
+    # ------------- Utils -------------
+    def _full_url(self, url: str) -> str:
+        return url if url.startswith("http") else f"{self.base_url}{url}"
+
+    def _request_html(self, url: str, max_retries: int = 8) -> BeautifulSoup:
+        full_url = self._full_url(url)
         for attempt in range(1, max_retries + 1):
             try:
-                resp = self.session.get(full_url, timeout=30)
+                self.limiter.wait()
+                sess = _get_thread_session(self.headers)
+                resp = sess.get(full_url, timeout=self.timeout)
+                if resp.status_code in (429, 403, 503):
+                    raise RuntimeError(f"HTTP {resp.status_code}")
                 resp.raise_for_status()
-                _sleep(0.8, 2.2)
                 return BeautifulSoup(resp.content, "html.parser")
-            except Exception as e:
+            except Exception:
                 if attempt == max_retries:
                     raise
-                _sleep(1.0 * attempt, 1.5 * attempt)
+                time.sleep(min(30.0, 1.2 * attempt + random.uniform(0.0, 1.0)))
+
+    def _request_json(self, url: str, max_retries: int = 6) -> dict:
+        full_url = self._full_url(url)
+        for attempt in range(1, max_retries + 1):
+            try:
+                self.limiter.wait()
+                sess = _get_thread_session(self.headers)
+                resp = sess.get(full_url, timeout=self.timeout)
+                if resp.status_code in (429, 403, 503):
+                    raise RuntimeError(f"HTTP {resp.status_code}")
+                if resp.status_code != 200:
+                    return {}
+                return resp.json()
+            except Exception:
+                if attempt == max_retries:
+                    return {}
+                time.sleep(min(30.0, 1.0 * attempt + random.uniform(0.0, 1.0)))
+
+    def _slug_from_team_url(self, team_url: str) -> str:
+        # team_url típico: "/brighton-amp-hove-albion/startseite/verein/1237"
+        m = re.match(r"^/([^/]+)/", team_url or "")
+        return m.group(1) if m else ""
+
+    def _ensure_team_slug(self, team: dict) -> None:
+        """
+        Parchea equipos de checkpoints antiguos: si no hay slug, lo derivamos del href guardado (team['url']).
+        Esto arregla casos como Brighton (amp vs &).
+        """
+        if team.get("slug"):
+            return
+        url = team.get("url", "") or ""
+        slug = self._slug_from_team_url(url)
+        if slug:
+            team["slug"] = slug
+            return
+        # último recurso
+        name = team.get("name", "") or ""
+        team["slug"] = self.parse_name(name)
+
+    def _season_id_candidates(self, league_name: str, season: str) -> list[str]:
+        cached = self._league_saison_cache.get(league_name)
+        if cached:
+            return [cached]
+
+        base = self.get_season_id(season)
+        if base.isdigit():
+            b = int(base)
+            return [str(b), str(b - 1)]
+        return [base]
 
     @staticmethod
     def parse_name(name: str) -> str:
-        """Normaliza nombre a slug de URL de equipo en TM."""
         name = unidecode.unidecode(name)
         name = (
             name.replace(".", "")
@@ -138,32 +263,31 @@ class TransfermarktMassiveScraper:
 
     @staticmethod
     def get_season_id(season: str) -> str:
-        """Convierte '2024-2025' -> '2024' (TM usa la primera parte)."""
+        # OJO: para "2026" -> "2025" (como ya estabas usando)
         if "/" in season:
             return season.split("/")[0]
         if "-" in season:
             return season.split("-")[0]
         try:
-            return str(int(season) - 1)  # para formatos sueltos como "2025"
+            return str(int(season) - 1)
         except Exception:
             return season
 
-    # ---------------- Extracciones ----------------
-    def get_league_teams(self, league_name: str, season: str = "2025") -> List[Dict]:
+    # ------------- Extracciones -------------
+    def get_league_teams(self, league_name: str, season: str = "2026") -> List[Dict]:
         info = self.leagues.get(league_name)
         if not info:
             raise ValueError(f"Liga no encontrada: {league_name}")
 
         season_id = self.get_season_id(season)
         url = f"/{info['name']}/startseite/wettbewerb/{info['id']}/plus/?saison_id={season_id}"
-        soup = self.make_request(url)
-        teams: List[Dict] = []
+        soup = self._request_html(url)
 
+        teams: List[Dict] = []
         table = soup.find("table", {"class": "items"})
         if not table:
             print(f"[WARN] No se encontró tabla de equipos para {league_name}")
             return teams
-
         tbody = table.find("tbody")
         if not tbody:
             return teams
@@ -176,145 +300,23 @@ class TransfermarktMassiveScraper:
                 team_link = team_cell.find("a")
                 if not team_link:
                     continue
-
                 team_name = team_link.get("title", "").strip()
                 team_url = team_link.get("href", "")
-
                 m = re.search(r"/verein/(\d+)", team_url)
                 team_id = m.group(1) if m else None
-
                 if team_name and team_id:
-                    teams.append(
-                        {
-                            "name": team_name,
-                            "id": team_id,
-                            "url": team_url,
-                            "league": league_name,
-                            "season": season,
-                        }
-                    )
+                    team_slug = self._slug_from_team_url(team_url)
+                    teams.append({
+                        "name": team_name,
+                        "id": team_id,
+                        "url": team_url,
+                        "slug": team_slug,
+                        "league": league_name,
+                        "season": season,
+                    })
             except Exception:
                 continue
         return teams
-
-    def get_team_players(self, team_id: str, team_name: str, season: str = "2026") -> List[Dict]:
-        print(f"  [INFO] Jugadores de {team_name}")
-        season_id = self.get_season_id(season)
-        team_url_name = self.parse_name(team_name)
-        url = f"/{team_url_name}/kader/verein/{team_id}/plus/1/galerie/0?saison_id={season_id}"
-
-        soup = self.make_request(url)
-        players: List[Dict] = []
-
-        table = soup.find("table", {"class": "items"})
-        if not table:
-            print(f"[WARN] No plantilla para {team_name}")
-            return players
-
-        tbody = table.find("tbody")
-        if not tbody:
-            return players
-
-        rows = tbody.find_all("tr", recursive=False)
-        for row in rows:
-            try:
-                cells = row.find_all("td", recursive=False)
-                if len(cells) < 5:
-                    continue
-
-                # Nombre y perfil
-                name_cell = cells[1]
-                name_link = name_cell.find("a", href=re.compile(r"/profil/spieler/"))
-                if not name_link:
-                    continue
-
-                player_name = name_link.get_text(strip=True)
-                player_url = name_link["href"]
-                m = re.search(r"/spieler/(\d+)", player_url)
-                player_id = m.group(1) if m else None
-
-                # Extra detalle (altura, pie, posiciones) desde perfil
-                profile_soup = self.make_request(player_url)
-
-                # Altura
-                height = None
-                try:
-                    height_span = profile_soup.find("span", itemprop="height")
-                    if height_span:
-                        height = height_span.get_text(strip=True)
-                except Exception:
-                    pass
-
-                # Pie dominante
-                foot = None
-                try:
-                    foot_label = profile_soup.find("span", string=re.compile(r"Foot:"))
-                    if foot_label:
-                        foot_tag = foot_label.find_next("span", class_="info-table__content--bold")
-                        if foot_tag:
-                            foot = foot_tag.get_text(strip=True)
-                except Exception:
-                    pass
-
-                # Posiciones
-                main_position = ""
-                other_positions: List[str] = []
-                try:
-                    main_dt = profile_soup.find("dt", string=re.compile(r"Main position:"))
-                    if main_dt:
-                        main_dd = main_dt.find_next("dd")
-                        if main_dd:
-                            main_position = main_dd.get_text(strip=True)
-                    other_dts = profile_soup.find_all("dt", string=re.compile(r"Other position:"))
-                    for dt_tag in other_dts:
-                        siblings = dt_tag.find_parent("dl").find_all("dd")
-                        for sib in siblings:
-                            pos = sib.get_text(strip=True)
-                            if pos and pos not in other_positions:
-                                other_positions.append(pos)
-                except Exception:
-                    pass
-
-                # Edad (si viene en la columna de fecha de nacimiento)
-                age = None
-                try:
-                    dob_cell = cells[2].get_text(strip=True)
-                    m_age = re.search(r"\((\d{1,2})\)", dob_cell)
-                    if m_age:
-                        age = int(m_age.group(1))
-                except Exception:
-                    pass
-
-                # Valor de mercado
-                market_value = ""
-                mv_cell = row.find("td", class_="rechts hauptlink")
-                if mv_cell:
-                    mv_link = mv_cell.find("a")
-                    if mv_link:
-                        market_value = mv_link.get_text(strip=True)
-
-                players.append(
-                    {
-                        "name": player_name,
-                        "id": player_id,
-                        "profile_url": f"{self.base_url}{player_url}",
-                        "url": player_url,
-                        "main_position": main_position,
-                        "other_positions": other_positions,
-                        "foot": foot,
-                        "age": age,
-                        "height": height,
-                        "market_value": market_value,
-                        "team_id": team_id,
-                        "team_name": team_name,
-                        "season": season,
-                    }
-                )
-                _sleep(0.5, 1.5)
-            except Exception:
-                continue
-
-        return players
 
     def _extract_contract_info(self, soup: BeautifulSoup) -> dict:
         info = {"joined": None, "contract_expires": None, "last_renewal": None}
@@ -338,33 +340,184 @@ class TransfermarktMassiveScraper:
             pass
         return info
 
+    def _parse_profile(self, player: dict) -> dict:
+        player_url = player.get("url")
+        if not player_url:
+            return {}
+
+        try:
+            profile_soup = self._request_html(player_url)
+
+            height = None
+            height_span = profile_soup.find("span", itemprop="height")
+            if height_span:
+                height = height_span.get_text(strip=True)
+
+            foot = None
+            foot_label = profile_soup.find("span", string=re.compile(r"Foot"))
+            if foot_label:
+                foot_tag = foot_label.find_next("span", class_=re.compile(r"info-table__content"))
+                if foot_tag:
+                    foot = foot_tag.get_text(strip=True)
+
+            main_position = ""
+            other_positions: List[str] = []
+            main_dt = profile_soup.find("dt", string=re.compile(r"Main position"))
+            if main_dt:
+                main_dd = main_dt.find_next("dd")
+                if main_dd:
+                    main_position = main_dd.get_text(strip=True)
+
+            other_dts = profile_soup.find_all("dt", string=re.compile(r"Other position"))
+            for dt_tag in other_dts:
+                dl = dt_tag.find_parent("dl")
+                if not dl:
+                    continue
+                dds = dl.find_all("dd")
+                for dd in dds:
+                    pos = dd.get_text(strip=True)
+                    if pos and pos not in other_positions and pos != main_position:
+                        other_positions.append(pos)
+
+            contract_details = self._extract_contract_info(profile_soup)
+
+            return {
+                "profile_url": f"{self.base_url}{player_url}",
+                "height": height,
+                "foot": foot,
+                "main_position": main_position,
+                "other_positions": other_positions,
+                "contract_details": contract_details,
+            }
+        except Exception:
+            return {}
+
+    def _parse_roster_table(self, table: BeautifulSoup, team_id: str, team_name: str, season: str) -> List[Dict]:
+        players: List[Dict] = []
+        tbody = table.find("tbody")
+        if not tbody:
+            return players
+
+        rows = tbody.find_all("tr", recursive=False)
+        for row in rows:
+            try:
+                cells = row.find_all("td", recursive=False)
+                if len(cells) < 5:
+                    continue
+
+                name_cell = cells[1]
+                name_link = name_cell.find("a", href=re.compile(r"/profil/spieler/"))
+                if not name_link:
+                    continue
+
+                player_name = name_link.get_text(strip=True)
+                player_url = name_link["href"]
+                m = re.search(r"/spieler/(\d+)", player_url)
+                player_id = m.group(1) if m else None
+
+                age = None
+                try:
+                    dob_cell = cells[2].get_text(strip=True)
+                    m_age = re.search(r"\((\d{1,2})\)", dob_cell)
+                    if m_age:
+                        age = int(m_age.group(1))
+                except Exception:
+                    pass
+
+                market_value = ""
+                mv_cell = row.find("td", class_="rechts hauptlink")
+                if mv_cell:
+                    mv_link = mv_cell.find("a")
+                    if mv_link:
+                        market_value = mv_link.get_text(strip=True)
+
+                players.append({
+                    "name": player_name,
+                    "id": player_id,
+                    "url": player_url,
+                    "age": age,
+                    "market_value": market_value,
+                    "team_id": team_id,
+                    "team_name": team_name,
+                    "season": season,
+                })
+            except Exception:
+                continue
+
+        return players
+
+    def get_team_roster(self, team: Dict, season: str = "2026") -> List[Dict]:
+        """
+        Descarga roster del equipo (sin perfil).
+        FIXES:
+        - Si el checkpoint viejo no tiene slug, lo derivamos de team['url'] (evita Brighton & → amp).
+        - Fallback de saison_id: prueba base y base-1.
+        - Fallback plus=1/0.
+        """
+        team_id = team.get("id")
+        team_name = team.get("name", "")
+        league_name = team.get("league", "") or ""
+
+        if not team_id:
+            return []
+
+        # 🔧 parchea slug aunque venga de CKPT antiguo
+        self._ensure_team_slug(team)
+        team_slug = team.get("slug") or self.parse_name(team_name)
+
+        season_ids = self._season_id_candidates(league_name, season)
+
+        last_err: Optional[Exception] = None
+
+        for sid in season_ids:
+            for plus in (1, 0):
+                url = f"/{team_slug}/kader/verein/{team_id}/plus/{plus}/galerie/0?saison_id={sid}"
+                try:
+                    soup = self._request_html(url)
+                except Exception as e:
+                    last_err = e
+                    continue
+
+                table = soup.find("table", {"class": "items"})
+                if not table:
+                    continue
+
+                # ✅ si esto funciona, cacheamos el sid para la liga
+                if league_name and sid.isdigit():
+                    self._league_saison_cache[league_name] = sid
+
+                players = self._parse_roster_table(table, team_id, team_name, season)
+                if players:
+                    return players
+
+        if last_err:
+            raise last_err
+
+        print(f"[WARN] No plantilla para {team_name}")
+        return []
+
     def _extract_market_value_evolution(self, player_id: str) -> List[Dict]:
         try:
             api_url = f"https://www.transfermarkt.com/ceapi/marketValueDevelopment/graph/{player_id}"
-            resp = self.session.get(api_url, timeout=30, headers=self.headers)
-            _sleep(0.8, 1.5)
-            if resp.status_code != 200:
-                return []
-            raw_list = resp.json().get("list", [])
+            data = self._request_json(api_url)
+            raw_list = (data or {}).get("list", [])
             out: List[Dict] = []
             current_year = datetime.now().year
+
             for entry in raw_list:
                 date_str = entry.get("datum_mw")
                 try:
-                    # Ej: "Jul 12, 2024"
                     dt = datetime.strptime(date_str, "%b %d, %Y")
                 except Exception:
                     continue
                 if dt.year < current_year - 2:
                     continue
-                out.append(
-                    {
-                        "date": dt.strftime("%Y-%m-%d"),
-                        "value": entry.get("y", 0),
-                        "age": int(entry.get("age", 0) or 0),
-                        "club": entry.get("verein", ""),
-                    }
-                )
+                out.append({
+                    "date": dt.strftime("%Y-%m-%d"),
+                    "value": entry.get("y", 0),
+                    "age": int(entry.get("age", 0) or 0),
+                    "club": entry.get("verein", ""),
+                })
             out.sort(key=lambda x: x["date"], reverse=True)
             return out
         except Exception:
@@ -373,104 +526,217 @@ class TransfermarktMassiveScraper:
     def _extract_transfer_history(self, player_id: str) -> List[Dict]:
         try:
             api_url = f"https://www.transfermarkt.com/ceapi/transferHistory/list/{player_id}"
-            resp = self.session.get(api_url, timeout=30, headers=self.headers)
-            if resp.status_code != 200:
-                return []
-            data = resp.json()
+            data = self._request_json(api_url)
             transfers: List[Dict] = []
-            for t in data.get("transfers", []):
+            for t in (data or {}).get("transfers", []):
                 raw_fee = t.get("fee", "")
                 clean_fee = BeautifulSoup(raw_fee, "html.parser").get_text(strip=True)
                 fee_lower = clean_fee.lower()
                 is_loan = any(kw in fee_lower for kw in ["loan", "loan fee", "loan transfer"]) and "end of loan" not in fee_lower
                 if (clean_fee == "-" and "loan" in t.get("type", "").lower()):
                     is_loan = True
-                transfers.append(
-                    {
-                        "season": t.get("season", ""),
-                        "date": t.get("date", ""),
-                        "from_club": t.get("from", {}).get("clubName", ""),
-                        "to_club": t.get("to", {}).get("clubName", ""),
-                        "fee": clean_fee,
-                        "loan": is_loan,
-                    }
-                )
+                transfers.append({
+                    "season": t.get("season", ""),
+                    "date": t.get("date", ""),
+                    "from_club": t.get("from", {}).get("clubName", ""),
+                    "to_club": t.get("to", {}).get("clubName", ""),
+                    "fee": clean_fee,
+                    "loan": is_loan,
+                })
             return transfers
         except Exception:
             return []
 
-    def get_player_detailed_info(self, player_name: str, player_profile: str, player_id: str) -> Dict:
-        soup = self.make_request(player_profile)
+    def _fetch_ceapi_details(self, player_id: str) -> dict:
         return {
-            "contract_details": self._extract_contract_info(soup),
             "market_value_evolution": self._extract_market_value_evolution(player_id),
             "transfer_history": self._extract_transfer_history(player_id),
         }
 
-    # ---------------- Orquestación ----------------
-    def scrape_league_massive(self, league_name: str, season: str = "2025") -> Dict:
-        print(f"\n[LEAGUE] {league_name} — temporada {season}")
-        result = {
-            "league": league_name,
-            "season": season,
-            "teams": [],
-            "players": [],
-            "total_teams": 0,
-            "total_players": 0,
-            "scraping_date": datetime.now().isoformat(),
-        }
+    # ------------- Paralelización -------------
+    def enrich_profiles_parallel(self, players: List[Dict]) -> None:
+        if not players:
+            return
+        with ThreadPoolExecutor(max_workers=self.workers_profiles) as ex:
+            futs = {ex.submit(self._parse_profile, p): p for p in players if p.get("url")}
+            for fut in as_completed(futs):
+                p = futs[fut]
+                try:
+                    p.update(fut.result())
+                except Exception:
+                    pass
 
-        teams = self.get_league_teams(league_name, season)
+    def enrich_ceapi_parallel(self, players: List[Dict]) -> None:
+        if not players:
+            return
+        with ThreadPoolExecutor(max_workers=self.workers_ceapi) as ex:
+            futs = {ex.submit(self._fetch_ceapi_details, p["id"]): p for p in players if p.get("id")}
+            for fut in as_completed(futs):
+                p = futs[fut]
+                try:
+                    p.update(fut.result())
+                except Exception:
+                    pass
+
+    # ------------- Checkpoint -------------
+    def _safe_league_filename(self, league_name: str) -> str:
+        return f"tm_{league_name.replace(' ', '_')}_jugadores.json"
+
+    def _ckpt_path(self, league_name: str) -> Path:
+        return CHECKPOINT_TEMPLATE.parent / self._safe_league_filename(league_name)
+
+    def _load_ckpt(self, league_name: str) -> Optional[dict]:
+        path = self._ckpt_path(league_name)
+        if self.resume and path.exists():
+            try:
+                return json.loads(path.read_text(encoding="utf8"))
+            except Exception:
+                return None
+        return None
+
+    def _save_ckpt(self, league_name: str, data: dict) -> None:
+        path = self._ckpt_path(league_name)
+        tmp = path.with_suffix(path.suffix + ".tmp")  # .json.tmp
+        tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf8")
+        tmp.replace(path)
+        print(f"[CKPT] {path} (players={data.get('total_players', 0)} teams_done={data.get('teams_done', 0)})")
+
+    # ------------- Orquestación -------------
+    def scrape_league_massive(self, league_name: str, season: str = "2026") -> Dict:
+        print(f"\n[LEAGUE] {league_name} — temporada {season}")
+
+        existing = self._load_ckpt(league_name)
+        if existing and existing.get("season") == season:
+            result = existing
+            all_players: List[Dict] = result.get("players", [])
+            done_team_ids = set(result.get("done_team_ids", []))
+            print(f"[RESUME] Reanudando {league_name}: players={len(all_players)} teams_done={len(done_team_ids)}")
+        else:
+            result = {
+                "league": league_name,
+                "season": season,
+                "teams": [],
+                "players": [],
+                "total_teams": 0,
+                "total_players": 0,
+                "teams_done": 0,
+                "done_team_ids": [],
+                "scraping_date": datetime.now().isoformat(),
+            }
+            all_players = []
+            done_team_ids = set()
+
+        teams = result.get("teams") or self.get_league_teams(league_name, season)
+
+        # 🔧 Parchea slugs en equipos (por si vienen de CKPT antiguo)
+        for t in teams:
+            t.setdefault("league", league_name)
+            t.setdefault("season", season)
+            self._ensure_team_slug(t)
+
         result["teams"] = teams
         result["total_teams"] = len(teams)
 
-        all_players: List[Dict] = []
-        for team in teams:
+        for i, team in enumerate(teams, start=1):
+            team_id = team.get("id")
+            team_name = team.get("name", "")
+            if not team_id or team_id in done_team_ids:
+                continue
+
+            print(f"  [TEAM {i}/{len(teams)}] {team_name}")
+
             try:
-                players = self.get_team_players(team["id"], team["name"], season=season)
-                for p in players:
-                    try:
-                        detail = self.get_player_detailed_info(p["name"], p["profile_url"], p["id"])
-                        p.update(detail)
-                        all_players.append(p)
-                        _sleep(0.8, 2.0)
-                    except Exception:
-                        continue
-                _sleep(2.0, 4.0)
-            except Exception:
+                roster = self.get_team_roster(team, season=season)
+
+                self.enrich_profiles_parallel(roster)
+                self.enrich_ceapi_parallel(roster)
+
+                all_players.extend(roster)
+
+                done_team_ids.add(team_id)
+                result["done_team_ids"] = list(done_team_ids)
+                result["teams_done"] = len(done_team_ids)
+                result["players"] = all_players
+                result["total_players"] = len(all_players)
+                result["scraping_date"] = datetime.now().isoformat()
+
+                self._save_ckpt(league_name, result)
+
+            except Exception as e:
+                print(f"  [WARN] Error equipo {team_name}: {e}")
+                result["players"] = all_players
+                result["total_players"] = len(all_players)
+                result["scraping_date"] = datetime.now().isoformat()
+                self._save_ckpt(league_name, result)
                 continue
 
         result["players"] = all_players
         result["total_players"] = len(all_players)
         return result
 
-    def scrape_multiple_leagues(self, leagues: List[str], season: str = "2025") -> Dict:
+    def scrape_multiple_leagues(self, leagues: List[str], season: str = "2026") -> Dict:
         results = {"scraping_date": datetime.now().isoformat(), "season": season, "leagues": {}}
         for league in leagues:
             try:
                 data = self.scrape_league_massive(league, season)
                 results["leagues"][league] = data
-                # checkpoint por liga
-                ckpt = CHECKPOINT_TEMPLATE.format(league=league.replace(" ", "_"))
-                with open(ckpt, "w", encoding="utf8") as f:
-                    json.dump(data, f, ensure_ascii=False, indent=2)
-                print(f"[CKPT] guardado {ckpt} (players={data['total_players']})")
-                _sleep(5.0, 10.0)
             except Exception as e:
                 print(f"[ERROR] procesando {league}: {e}")
                 continue
         return results
 
 
-def run() -> str:
-    scraper = TransfermarktMassiveScraper()
-    leagues_to_scrape = list(scraper.leagues.keys())  # puedes limitar para pruebas
-    all_data = scraper.scrape_multiple_leagues(leagues_to_scrape)
-    with open(RAW_OUT, "w", encoding="utf8") as f:
-        json.dump(all_data, f, ensure_ascii=False, indent=2)
+def run_cli():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--season", default="2026")
+    parser.add_argument("--rps", type=float, default=1.2, help="Requests por segundo global (total entre hilos).")
+    parser.add_argument("--workers_profiles", type=int, default=6)
+    parser.add_argument("--workers_ceapi", type=int, default=12)
+    parser.add_argument("--resume", action="store_true", help="Reanudar desde checkpoint si existe.")
+    parser.add_argument("--no-resume", dest="resume", action="store_false")
+    parser.set_defaults(resume=True)
+    parser.add_argument("--leagues", nargs="*", default=None, help="Lista de ligas (si no, todas).")
+    args = parser.parse_args()
+
+    scraper = TransfermarktMassiveScraper(
+        rps=args.rps,
+        workers_profiles=args.workers_profiles,
+        workers_ceapi=args.workers_ceapi,
+        resume=args.resume,
+    )
+
+    leagues_to_scrape = args.leagues or list(scraper.leagues.keys())
+    all_data = scraper.scrape_multiple_leagues(leagues_to_scrape, season=args.season)
+
+    RAW_OUT.write_text(json.dumps(all_data, ensure_ascii=False, indent=2), encoding="utf8")
     print(f"\n[OK] Guardado JSON completo en {RAW_OUT}")
     return RAW_OUT
 
+def run(
+    season: str = "2026",
+    rps: float = 1.6,
+    workers_profiles: int = 6,
+    workers_ceapi: int = 12,
+    resume: bool = True,
+    leagues: Optional[List[str]] = None,
+) -> str:
+    """
+    Wrapper compatible con el main_etl antiguo.
+    NO parsea argv (a diferencia de run_cli).
+    """
+    scraper = TransfermarktMassiveScraper(
+        rps=rps,
+        workers_profiles=workers_profiles,
+        workers_ceapi=workers_ceapi,
+        resume=resume,
+    )
+    leagues_to_scrape = leagues or list(scraper.leagues.keys())
+    all_data = scraper.scrape_multiple_leagues(leagues_to_scrape, season=season)
+
+    RAW_OUT.write_text(json.dumps(all_data, ensure_ascii=False, indent=2), encoding="utf8")
+    print(f"\n[OK] Guardado JSON completo en {RAW_OUT}")
+    return str(RAW_OUT)
+
 
 if __name__ == "__main__":
-    run()
+    run_cli()

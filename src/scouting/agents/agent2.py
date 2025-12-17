@@ -163,6 +163,7 @@ LIGA_COEFICIENTES = {
 }
 
 
+
 def _stat_to_block(stat: str) -> str | None:
     for block, stats in STAT_BLOCKS.items():
         if stat in stats:
@@ -432,9 +433,9 @@ INTENT_TO_STATS_GK = {
 # mismo modelo que ya tienes instalado (rápido y suficiente para similitudes de texto)
 encoder = SentenceTransformer("intfloat/multilingual-e5-base")
 
-MINUTES_FILTER_DEFAULT_JUG = 500 
+MINUTES_FILTER_DEFAULT_JUG = 200 
 MINUTES_FILTER_DEFAULT_GK = 0
-MINUTES_PREFER_PER90_THRESHOLD = 750
+MINUTES_PREFER_PER90_THRESHOLD = 300        #Este lo tenemos que ir revisando continuamente. igual mediados de enero 450, finales de febrero 600, inicios abril 750, finales mayo 1000
 
 class ScoreEvaluatorAgent:
     def __init__(self):

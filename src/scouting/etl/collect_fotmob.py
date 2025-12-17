@@ -56,7 +56,7 @@ INTERIM_DIR.mkdir(parents=True, exist_ok=True)
 #Este token se debe actualizar antes del uso, ya que cambia cada 24h, habrá que ir a un jugador en fotmob, click derecho, inspeccionar, darle a network, el filtro fetch,
 #A continuación algún click en la página del jugador, y en currency mismo que saldrá en network, nos metemos y dentro de esta al bajar encontramos el xmas actualizado
 X_MAS_ENV = os.getenv("X_MAS_TOKEN", "").strip()
-x_mas_fallback = "eyJib2R5Ijp7InVybCI6Ii9hcGkvY3VycmVuY3kiLCJjb2RlIjoxNzU2OTMyNTEzNTg1LCJmb28iOiJwcm9kdWN0aW9uOmZlZDViN2Q5ZmUzMmY0NGZmOGNiNWQ4OWM0YzVkNTM4Mzc1ZjEyZDcifSwic2lnbmF0dXJlIjoiQUM1MkI4QjlDODI3RUZEM0Y2MzgxOTU3QkM0Q0ZDMkYifQ=="
+x_mas_fallback = "eyJib2R5Ijp7InVybCI6Ii9hcGkvY3VycmVuY3kiLCJjb2RlIjoxNzY1Nzk1MzgxOTM5LCJmb28iOiJwcm9kdWN0aW9uOjAzNTY1MDkxM2Y1M2I5YzMwOWUxMzU1YzJjYTZmNTc1ZjE4YmZkOTEifSwic2lnbmF0dXJlIjoiQjM5NzZCOUQwQTM1MEU4NTczQjlFMjVFOUZBNTJBQzYifQ=="
 X_MAS = X_MAS_ENV or x_mas_fallback
 
 
@@ -80,16 +80,16 @@ class FotmobMassiveScraper:
 
         # Puedes reducir a pocas ligas para probar
         self.leagues = [
-            {"id": 87, "nombre": "LaLiga", "pais": "España", "temporada": "2024-2025"},
-          {"id": 140, "nombre": "LaLiga2", "pais": "España", "temporada": "2024-2025"},
-          {"id": 54, "nombre": "Bundesliga", "pais": "Alemania", "temporada": "2024-2025"},
-          {"id": 146, "nombre": "2. Bundesliga", "pais": "Alemania", "temporada": "2024-2025"},
-          {"id": 208, "nombre": "3. Liga", "pais": "Alemania", "temporada": "2024-2025"},
-          {"id": 536, "nombre": "Saudi Pro League", "pais": "Arabia Saudi", "temporada": "2024-2025"},
+            {"id": 87, "nombre": "LaLiga", "pais": "España", "temporada": "2025-2026"},
+          {"id": 140, "nombre": "LaLiga2", "pais": "España", "temporada": "2025-2026"},
+          {"id": 54, "nombre": "Bundesliga", "pais": "Alemania", "temporada": "2025-2026"},
+          {"id": 146, "nombre": "2. Bundesliga", "pais": "Alemania", "temporada": "2025-2026"},
+          {"id": 208, "nombre": "3. Liga", "pais": "Alemania", "temporada": "2025-2026"},
+          {"id": 536, "nombre": "Saudi Pro League", "pais": "Arabia Saudi", "temporada": "2025-2026"},
           {"id": 112, "nombre": "Liga Profesional", "pais": "Argentina", "temporada": "2025"},
-          {"id": 113, "nombre": "A-League ", "pais": "Australia", "temporada": "2024-2025"},
-          {"id": 38, "nombre": "Bundesliga (Austria)", "pais": "Austria", "temporada": "2024-2025"},
-          {"id": 40, "nombre": "First Division A", "pais": "Belgica", "temporada": "2024-2025"},
+          {"id": 113, "nombre": "A-League ", "pais": "Australia", "temporada": "2025-2026"},
+          {"id": 38, "nombre": "Bundesliga (Austria)", "pais": "Austria", "temporada": "2025-2026"},
+          {"id": 40, "nombre": "First Division A", "pais": "Belgica", "temporada": "2025-2026"},
           {"id": 268, "nombre": "Serie A (Brasil)", "pais": "Brasil", "temporada": "2025"},
           {"id": 8814, "nombre": "Serie B (Brasil)", "pais": "Brasil", "temporada": "2025"},
           {"id": 9986, "nombre": "Premier League (Canada)", "pais": "Canada", "temporada": "2025"},
@@ -98,39 +98,39 @@ class FotmobMassiveScraper:
           {"id": 274, "nombre": "Primera A (Colombia)", "pais": "Colombia", "temporada": "2025-Clausura"},
           {"id": 9080, "nombre": "K League 1(Corea del Sur)", "pais": "Corea del Sur", "temporada": "2025"},
           {"id": 9116, "nombre": "K League 2 (Corea del Sur)", "pais": "Corea del Sur", "temporada": "2025"},
-          {"id": 252, "nombre": "HNL (Croacia)", "pais": "Croacia", "temporada": "2024-2025"},
-          {"id": 85, "nombre": "1. Division (Dinamarca)", "pais": "Dinamarca", "temporada": "2024-2025"},
-          {"id": 519, "nombre": "Premier League (Egipto)", "pais": "Egipto", "temporada": "2024-2025"},
-          {"id": 64, "nombre": "Premiership (Escocia)", "pais": "Escocia", "temporada": "2024-2025"},
-          {"id": 123, "nombre": "Championship (Escocia)", "pais": "Escocia", "temporada": "2024-2025"},
+          {"id": 252, "nombre": "HNL (Croacia)", "pais": "Croacia", "temporada": "2025-2026"},
+          {"id": 85, "nombre": "1. Division (Dinamarca)", "pais": "Dinamarca", "temporada": "2025-2026"},
+          {"id": 519, "nombre": "Premier League (Egipto)", "pais": "Egipto", "temporada": "2025-2026"},
+          {"id": 64, "nombre": "Premiership (Escocia)", "pais": "Escocia", "temporada": "2025-2026"},
+          {"id": 123, "nombre": "Championship (Escocia)", "pais": "Escocia", "temporada": "2025-2026"},
           {"id": 130, "nombre": "MLS", "pais": "USA", "temporada": "2025"},
           {"id": 8972, "nombre": "USL Championship", "pais": "USA", "temporada": "2025"},
           {"id": 51, "nombre": "Veikkausliiga", "pais": "Finlandia", "temporada": "2025"},
-          {"id": 53, "nombre": "Ligue 1", "pais": "Francia", "temporada": "2024-2025"},
-          {"id": 110, "nombre": "Ligue 2", "pais": "Francia", "temporada": "2024-2025"},
-          {"id": 135, "nombre": "Super League 1 (Grecia)", "pais": "Grecia", "temporada": "2024-2025"},
-          {"id": 9478, "nombre": "Indian Super League", "pais": "India", "temporada": "2024-2025"},
-          {"id": 47, "nombre": "Premier League", "pais": "Inglaterra", "temporada": "2024-2025"},
-          {"id": 48, "nombre": "Championship", "pais": "Inglaterra", "temporada": "2024-2025"},
-          {"id": 108, "nombre": "League One", "pais": "Inglaterra", "temporada": "2024-2025"},
-          {"id": 109, "nombre": "League Two", "pais": "Inglaterra", "temporada": "2024-2025"},
+          {"id": 53, "nombre": "Ligue 1", "pais": "Francia", "temporada": "2025-2026"},
+          {"id": 110, "nombre": "Ligue 2", "pais": "Francia", "temporada": "2025-2026"},
+          {"id": 135, "nombre": "Super League 1 (Grecia)", "pais": "Grecia", "temporada": "2025-2026"},
+          {"id": 9478, "nombre": "Indian Super League", "pais": "India", "temporada": "2025-2026"},
+          {"id": 47, "nombre": "Premier League", "pais": "Inglaterra", "temporada": "2025-2026"},
+          {"id": 48, "nombre": "Championship", "pais": "Inglaterra", "temporada": "2025-2026"},
+          {"id": 108, "nombre": "League One", "pais": "Inglaterra", "temporada": "2025-2026"},
+          {"id": 109, "nombre": "League Two", "pais": "Inglaterra", "temporada": "2025-2026"},
           {"id": 126, "nombre": "Premier Division (Irlanda)", "pais": "Irlanda", "temporada": "2025"},
           {"id": 215, "nombre": "Besta deildin", "pais": "Islandia", "temporada": "2025"},
-          {"id": 55, "nombre": "Serie A", "pais": "Italia", "temporada": "2024-2025"},
-          {"id": 86, "nombre": "Serie B", "pais": "Italia", "temporada": "2024-2025"},
+          {"id": 55, "nombre": "Serie A", "pais": "Italia", "temporada": "2025-2026"},
+          {"id": 86, "nombre": "Serie B", "pais": "Italia", "temporada": "2025-2026"},
           {"id": 223, "nombre": "J. League (Japón)", "pais": "Japon", "temporada": "2025"},
           {"id": 230, "nombre": "Liga MX (Mexico)", "pais": "Mexico", "temporada": "2025-2026-Apertura"},
           {"id": 59, "nombre": "Eliteserien", "pais": "Noruega", "temporada": "2025"},
-          {"id": 57, "nombre": "Eredivisie", "pais": "Holanda", "temporada": "2024-2025"},
-          {"id": 111, "nombre": "Eerste Divisie", "pais": "Holanda", "temporada": "2024-2025"},
-          {"id": 196, "nombre": "Ekstraklasa", "pais": "Polonia", "temporada": "2024-2025"},
-          {"id": 61, "nombre": "Liga Portugal", "pais": "Portugal", "temporada": "2024-2025"},
-          {"id": 63, "nombre": "Premier League (Rusia)", "pais": "Rusia", "temporada": "2024-2025"},
+          {"id": 57, "nombre": "Eredivisie", "pais": "Holanda", "temporada": "2025-2026"},
+          {"id": 111, "nombre": "Eerste Divisie", "pais": "Holanda", "temporada": "2025-2026"},
+          {"id": 196, "nombre": "Ekstraklasa", "pais": "Polonia", "temporada": "2025-2026"},
+          {"id": 61, "nombre": "Liga Portugal", "pais": "Portugal", "temporada": "2025-2026"},
+          {"id": 63, "nombre": "Premier League (Rusia)", "pais": "Rusia", "temporada": "2025-2026"},
           {"id": 67, "nombre": "Allsvenskan", "pais": "Suecia", "temporada": "2025"},
-          {"id": 69, "nombre": "Super League (Suiza)", "pais": "Suiza", "temporada": "2024-2025"},
+          {"id": 69, "nombre": "Super League (Suiza)", "pais": "Suiza", "temporada": "2025-2026"},
           {"id": 163, "nombre": "Challenge League (Suiza)", "pais": "Suiza", "temporada": "2025"},
-          {"id": 8984, "nombre": "Thai League", "pais": "Thailandia", "temporada": "2024-2025"},
-          {"id": 71, "nombre": "Super Lig (Turquía)", "pais": "Turquía", "temporada": "2024-2025"}
+          {"id": 8984, "nombre": "Thai League", "pais": "Thailandia", "temporada": "2025-2026"},
+          {"id": 71, "nombre": "Super Lig (Turquía)", "pais": "Turquía", "temporada": "2025-2026"} 
         ]
 
     def _parse_season_dom_map(self, url_jugador: str) -> dict:
@@ -327,7 +327,9 @@ class FotmobMassiveScraper:
             if first_option:
                 season_label = (first_option.get("label") or first_option.text or "").strip()
 
-        season_id = "1-0" if "2026" in (season_label or "") else "0-0"
+        #season_id = "1-0" if "2026" in (season_label or "") else "0-0"  Segun resultado ver si tenemos que hacer un cambio mayor o solo con dejar 0-0 nos vale
+        #
+        season_id = "0-0"
 
         # Mapa DOM de seasons (para poder rellenar liga/temporada de las stats)
         season_dom_map = {}

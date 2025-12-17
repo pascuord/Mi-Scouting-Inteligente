@@ -9,7 +9,7 @@ Sistema multiagente basado en RAG para scouting futbolístico
 ---
 
 ## 📌 Descripción general
-Este proyecto implementa un **bot de Telegram** para *scouting* futbolístico, capaz de responder consultas en lenguaje natural sobre una base de 12842 jugadores (porteros: 1289, jugadores: 11553).  
+Este proyecto implementa un **bot de Telegram** para *scouting* futbolístico, capaz de responder consultas en lenguaje natural sobre una base de 14476 jugadores (porteros: 1444, jugadores: 13032).  
 El sistema se basa en una **arquitectura multiagente orquestada en LangGraph**, que combina recuperación de información con generación aumentada (**RAG**).  
 
 El pipeline completo:

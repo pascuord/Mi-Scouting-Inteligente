@@ -19,6 +19,7 @@ services:
     env_file: .env
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - OPENAI_MODEL_SUPERVISOR=${OPENAI_MODEL_SUPERVISOR:-gpt-4o-mini}
       - INDICES_DIR=/data/processed/indices/current

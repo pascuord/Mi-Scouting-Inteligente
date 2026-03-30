@@ -1,9 +1,8 @@
 # src/scouting/telegram_entry.py
-from scouting.agents.telegram_bot import run_handler
+from scouting.agents.telegram_bot import start_bot # Cambiamos run_handler por start_bot
 
 def main():
-    # entrypoint para el console script "scouting-bot"
-    run_handler()
+    start_bot()
 
 if __name__ == "__main__":
     main()

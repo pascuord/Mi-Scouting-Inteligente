@@ -1,12 +1,19 @@
-# Datos y artefactos
-data/
-__pycache__/
-*.pyc
-*.log
-
-# Entornos / IDE / secretos
+# Variables de entorno y credenciales
+.env
 .venv/
 env/
-.env
-.vscode/
+venv/
+
+# Datos y modelos pesados (se comparten por fuera o se regeneran)
+data/
+models_cache/
+*.index
+*.json
+!pyproject.toml
+
+# Python y Sistema
+__pycache__/
+*.py[cod]
+.DS_Store
 .idea/
+.vscode/

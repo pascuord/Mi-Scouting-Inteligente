@@ -525,3 +525,13 @@ En la demo se observa cómo una consulta en lenguaje natural se transforma en:
 1. **Explicación razonada** de los 3 jugadores más relevantes.  
 2. **Gráficos comparativos** (radar y perfiles tipo player radar) generados automáticamente.  
 
+## 🚀 Puesta en marcha rápida (Docker)
+
+1. **Variables de entorno:**
+   Copia el archivo `.env.example`, renómbralo a `.env` y añade tus claves de API (Groq, Telegram).
+2. **Datos iniciales:**
+   Descarga la carpeta `data/` comprimida (solicítala al administrador) y descomprímela en la raíz del proyecto.
+3. **Construir la imagen (solo la primera vez):**
+   `sudo docker compose build --no-cache app-image`
+4. **Arrancar el bot en segundo plano:**
+   `sudo docker compose up -d bot`

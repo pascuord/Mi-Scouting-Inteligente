@@ -5,6 +5,7 @@ import json
 import time
 import asyncio
 import logging
+import random
 from pathlib import Path
 from datetime import datetime
 
@@ -12,38 +13,56 @@ import requests
 import aiohttp
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
-# al inicio del archivo
-import brotli  # si añades 'brotli' como dependencia; si usas 'brotlicffi', importa 'brotli' igual
+from curl_cffi.requests import AsyncSession
+import brotli  
+
+# ==============================================================================
+# NOTA DE ARQUITECTURA: OPTIMIZACIÓN DEL SCRAPER DE FOTMOB (V3)
+# ==============================================================================
+# Este script implementa una estrategia avanzada de extracción asíncrona para 
+# evadir bloqueos (Error 403) y minimizar la carga en los servidores de FotMob:
+#
+# 1. Bypass de Next.js (__NEXT_DATA__): Se ha eliminado la necesidad de hacer 
+#    múltiples peticiones por jugador o depender exclusivamente del parseo frágil 
+#    del DOM (HTML). En su lugar, se intercepta el JSON oculto de Next.js en el 
+#    código fuente, obteniendo todas las métricas avanzadas de una sola vez.
+#    -> Beneficio técnico: Acceso directo a datos estructurados puros, inmunidad 
+#       total ante rediseños visuales de la interfaz (desacoplamiento UI) y 
+#       reducción drástica del "footprint" de red al evitar peticiones en cascada.
+#
+# 2. Consolidación de Peticiones: Lógicas anteriores como `_parse_season_dom_map` 
+#    se han integrado directamente en `process_player_async`. Ahora, con una 
+#    ÚNICA petición HTTP por jugador, se extraen: Rasgos (Traits), Mapeo de 
+#    temporadas y Estadísticas completas.
+#
+# 3. Impersonación y Concurrencia: Se utiliza `curl_cffi` (impersonate="chrome110") 
+#    para generar una huella digital idéntica a un navegador real, junto con 
+#    semáforos asíncronos (`asyncio.Semaphore`) y tiempos de espera aleatorios 
+#    para garantizar una recolección masiva, estable y libre de baneos.
+# ==============================================================================
 
 def _decode_response_to_html(resp: requests.Response) -> str:
-    # Si el servidor devolvió Brotli y la lib no lo ha descomprimido, lo forzamos
     enc = (resp.headers.get("Content-Encoding") or "").lower()
-    # Si resp.text ya viene limpio, úsalo; si no, intenta decodificar content
     if enc == "br":
         try:
             return brotli.decompress(resp.content).decode(resp.encoding or "utf-8", errors="replace")
         except Exception:
-            # último recurso: intenta BeautifulSoup sobre content binario
             return resp.text
     else:
-        # gzip/deflate los maneja requests; text ya viene decodificado
         return resp.text
 
 def _soup_from_response(resp: requests.Response) -> BeautifulSoup:
     html = _decode_response_to_html(resp)
     try:
-        return BeautifulSoup(html, "lxml")  # parser más tolerante
+        return BeautifulSoup(html, "lxml")
     except Exception:
         return BeautifulSoup(html, "html.parser")
-
-
 
 # ==== Config =====
 load_dotenv()
 
 def get_absolute_path(path_str: str, default: str) -> Path:
     path = Path(path_str)
-    # Si es relativo, interpretarlo como absoluto dentro del contenedor
     return path if path.is_absolute() else Path(default)
 
 DATA_DIR = get_absolute_path(os.getenv("DATA_DIR", "/data"), "/data")
@@ -52,9 +71,6 @@ INTERIM_DIR = get_absolute_path(os.getenv("INTERIM_DIR", str(DATA_DIR / "interim
 RAW_DIR.mkdir(parents=True, exist_ok=True)
 INTERIM_DIR.mkdir(parents=True, exist_ok=True)
 
-# Fallback: si no hay .env, usamos el token previo
-#Este token se debe actualizar antes del uso, ya que cambia cada 24h, habrá que ir a un jugador en fotmob, click derecho, inspeccionar, darle a network, el filtro fetch,
-#A continuación algún click en la página del jugador, y en currency mismo que saldrá en network, nos metemos y dentro de esta al bajar encontramos el xmas actualizado
 X_MAS_ENV = os.getenv("X_MAS_TOKEN", "").strip()
 x_mas_fallback = "eyJib2R5Ijp7InVybCI6Ii9hcGkvY3VycmVuY3kiLCJjb2RlIjoxNzY1Nzk1MzgxOTM5LCJmb28iOiJwcm9kdWN0aW9uOjAzNTY1MDkxM2Y1M2I5YzMwOWUxMzU1YzJjYTZmNTc1ZjE4YmZkOTEifSwic2lnbmF0dXJlIjoiQjM5NzZCOUQwQTM1MEU4NTczQjlFMjVFOUZBNTJBQzYifQ=="
 X_MAS = X_MAS_ENV or x_mas_fallback
@@ -133,34 +149,13 @@ class FotmobMassiveScraper:
           {"id": 71, "nombre": "Super Lig (Turquía)", "pais": "Turquía", "temporada": "2025-2026"} 
         ]
 
-    def _parse_season_dom_map(self, url_jugador: str) -> dict:
-        """
-        Lee el <select> de seasons y devuelve:
-        {
-            "0-0": {"label": "LaLiga", "group": "2025/2026"},
-            "1-0": {"label": "LaLiga", "group": "2024/2025"},
-            ...
-        }
-        Si no hay <optgroup>, group = "".
-        """
-        try:
-            resp = self.session.get(url_jugador, headers=self.headers, timeout=30)
-            soup = _soup_from_response(resp)
-        except Exception:
-            return {}
+    def _get_random_proxy(self):
+        proxies = [
+            # Añade tus proxies aquí en el formato "http://usuario:pass@ip:puerto" o "http://ip:puerto"
+        ]
+        return random.choice(proxies) if proxies else None
 
-        out = {}
-        for opt in soup.select("select option[value]"):
-            val = (opt.get("value") or "").strip()
-            if not re.fullmatch(r"\d+-\d+", val):
-                continue
-            label = (opt.get("label") or opt.text or "").strip()
-            og = opt.find_parent("optgroup")
-            group = (og.get("label") or "").strip() if og else ""
-            out[val] = {"label": label, "group": group}
-        return out
-
-    # ==================== Funciones originales (idénticas) ==================== #
+    # ==================== Funciones síncronas de setup ==================== #
     def get_equipos_de_liga(self, id_liga, temporada):
         url_liga = f"{self.base_url}/es/leagues/{id_liga}/overview/?season={temporada}"
         print(f"\n[INFO] Buscando equipos para liga {id_liga} ({temporada})")
@@ -219,7 +214,6 @@ class FotmobMassiveScraper:
             if "entrenador" in posicion or "manager" in posicion or not posicion:
                 continue
             
-            # Extraer nacionalidad
             nacionalidad = ""
             for c in columnas:
                 country_div = c.find('div', class_="css-14ju9uz-PlayerCountry")
@@ -239,7 +233,7 @@ class FotmobMassiveScraper:
                 "posicion": posicion,
                 "nacionalidad": nacionalidad
             })
-        print(f"      [INFO] {len(jugadores)} jugadores (sin staff) encontrados.")
+        print(f"      [INFO] {len(jugadores)} jugadores encontrados.")
         return jugadores
 
     def scrape_fotmob_ligas(self, ligas):
@@ -267,47 +261,59 @@ class FotmobMassiveScraper:
                         "temporada": liga["temporada"],
                         "url_jugador": f"{self.base_url}/es/players/{jug['id_jugador']}"
                     })
-        # Guardamos en data/raw
         out_all = RAW_DIR / "jugadores_fotmob_all.json"
         out_all.write_text(json.dumps(jugadores_totales, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"\n🎉 Guardados {len(equipos_totales)} equipos y {len(jugadores_totales)} jugadores en total.")
         return jugadores_totales
 
-    # ==================== Async stats + checkpoints ==================== #
+    # ==================== Async stats + evasión ==================== #
     async def get_fotmob_stats_async(self, session, player_id, season_id, *, max_attempts: int = 5):
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            "User-Agent": self.headers["User-Agent"],
             "Accept": "application/json, text/plain, */*",
-            "Referer": f"https://www.fotmob.com/players/{player_id}",
+            "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
+            "Referer": f"https://www.fotmob.com/es/players/{player_id}",
             "x-mas": self.x_mas,
+            "Origin": "https://www.fotmob.com"
         }
         url = f"https://www.fotmob.com/api/data/playerStats?playerId={player_id}&seasonId={season_id}&isFirstSeason=false"
 
-        last_err = None
         for attempt in range(max_attempts):
-            try:
-                # timeout subido a 25s
-                async with session.get(url, headers=headers, timeout=25) as response:
-                    if response.status == 200:
-                        return await response.json()
-                    elif response.status in (429, 500, 502, 503, 504):
-                        await asyncio.sleep(0.5 * (2 ** attempt))
-                        continue
-                    else:
-                        last_err = RuntimeError(f"HTTP {response.status}")
-            except Exception as e:
-                last_err = e
-                await asyncio.sleep(0.5 * (2 ** attempt))
+            await asyncio.sleep(random.uniform(1.0, 3.0))
+            proxy = self._get_random_proxy()
+            proxy_dict = {"http": proxy, "https": proxy} if proxy else None
 
-        print(f"[WARN] get_fotmob_stats_async agotó reintentos para jugador {player_id} (season_id={season_id}). Último error: {last_err}")
+            try:
+                # Nota: curl_cffi no usa 'async with' para la petición directa
+                response = await session.get(url, headers=headers, proxies=proxy_dict, timeout=25)
+                
+                if response.status_code == 200:
+                    return response.json()
+                elif response.status_code == 403:
+                    print(f"[WARN] 403 en jugador {player_id} (Intento {attempt+1}).")
+                    await asyncio.sleep(random.uniform(5.0, 10.0))
+                elif response.status_code in (429, 500, 502, 503, 504):
+                    await asyncio.sleep(2)
+            except Exception:
+                await asyncio.sleep(2)
+
         return None
 
+    async def get_traits_and_season_id_async(self, session, url_jugador):
+        await asyncio.sleep(random.uniform(0.5, 2.0))
+        proxy = self._get_random_proxy()
+        proxy_dict = {"http": proxy, "https": proxy} if proxy else None
+        
+        try:
+            resp = await session.get(url_jugador, headers=self.headers, proxies=proxy_dict, timeout=30)
+            if resp.status_code != 200:
+                return {}, "0-0", {}
+            
+            html = resp.text
+            soup = BeautifulSoup(html, "lxml")
+        except Exception:
+            return {}, "0-0", {}
 
-    def get_traits_and_season_id(self, url_jugador):
-        resp = self.session.get(url_jugador, headers=self.headers, timeout=30)
-        soup = _soup_from_response(resp)
-
-        # Rasgos (igual que hacías)
         traits = {}
         for span in soup.select('span.css-1g16yy4-TraitText.e17fib5q6'):
             trait_name = span.text.strip()
@@ -319,19 +325,7 @@ class FotmobMassiveScraper:
                 except:
                     pass
 
-        # Tu regla: si la etiqueta visible menciona 2026 => pedir 1-0; si no, 0-0
-        first_optgroup = soup.select_one('select optgroup')
-        season_label = first_optgroup.get("label", "") if first_optgroup else ""
-        if not season_label:
-            first_option = soup.select_one('select option[selected], select option')
-            if first_option:
-                season_label = (first_option.get("label") or first_option.text or "").strip()
-
-        #season_id = "1-0" if "2026" in (season_label or "") else "0-0"  Segun resultado ver si tenemos que hacer un cambio mayor o solo con dejar 0-0 nos vale
-        #
         season_id = "0-0"
-
-        # Mapa DOM de seasons (para poder rellenar liga/temporada de las stats)
         season_dom_map = {}
         try:
             for opt in soup.select("select option[value]"):
@@ -342,14 +336,10 @@ class FotmobMassiveScraper:
                 og = opt.find_parent("optgroup")
                 group = (og.get("label") or "").strip() if og else ""
                 season_dom_map[val] = {"label": label, "group": group}
-            if not season_dom_map:
-                season_dom_map = self._parse_season_dom_map(url_jugador)
         except Exception:
-            season_dom_map = self._parse_season_dom_map(url_jugador)
+            pass
 
-        # DEVOLVEMOS 3 valores
         return traits, season_id, season_dom_map
-
 
     def extract_all_stats(self, data):
         stats_dict = {}
@@ -377,37 +367,91 @@ class FotmobMassiveScraper:
     async def process_player_async(self, session, semaphore, jugador):
         async with semaphore:
             player_id = jugador["id_jugador"]
-            last_exc = None
-
+            url_jugador = f"https://www.fotmob.com/es/players/{player_id}"
+            
             for attempt in range(3):
-                try:
-                    # AHORA devuelve también el mapa DOM
-                    traits, season_id, season_dom_map = self.get_traits_and_season_id(jugador["url_jugador"])
+                # Un pequeño retraso para no saturar
+                await asyncio.sleep(random.uniform(1.0, 2.5))
+                proxy = self._get_random_proxy()
+                proxy_dict = {"http": proxy, "https": proxy} if proxy else None
 
-                    statsdata = await self.get_fotmob_stats_async(session, player_id, season_id, max_attempts=3)
+                try:
+                    # 1 ÚNICA PETICIÓN: Pedimos la web normal del jugador
+                    resp = await session.get(url_jugador, headers=self.headers, proxies=proxy_dict, timeout=30)
+                    
+                    if resp.status_code != 200:
+                        if resp.status_code in (403, 429):
+                            await asyncio.sleep(5) # Si nos limitan, esperamos
+                        continue
+
+                    html = resp.text
+                    soup = BeautifulSoup(html, "lxml")
+
+                    # --- PASO 1: Extraer Rasgos (Tu código original) ---
+                    traits = {}
+                    for span in soup.select('span.css-1g16yy4-TraitText.e17fib5q6'):
+                        trait_name = span.text.strip()
+                        trait_percent = span.find_next("span", class_="css-1ozcgmv-TraitPercentage")
+                        if trait_percent:
+                            cleaned = trait_percent.text.replace('\xa0', '').replace('%', '').strip()
+                            try:
+                                traits[trait_name] = int(cleaned)
+                            except:
+                                pass
+
+                    # --- PASO 2: Extraer Ligas / Temporadas ---
+                    season_id = "0-0"
+                    season_dom_map = {}
+                    for opt in soup.select("select option[value]"):
+                        val = (opt.get("value") or "").strip()
+                        if not re.fullmatch(r"\d+-\d+", val): continue
+                        label = (opt.get("label") or opt.text or "").strip()
+                        og = opt.find_parent("optgroup")
+                        group = (og.get("label") or "").strip() if og else ""
+                        season_dom_map[val] = {"label": label, "group": group}
+
+                    # --- PASO 3: EL BYPASS (Buscar las Stats en el JSON oculto de Next.js) ---
+                    statsdata = None
+                    script_tag = soup.find('script', id='__NEXT_DATA__')
+                    
+                    if script_tag:
+                        json_data = json.loads(script_tag.string)
+                        
+                        # Función recursiva para buscar el bloque "statsSection" en todo el árbol JSON
+                        def find_stats(node):
+                            if isinstance(node, dict):
+                                if "statsSection" in node or "topStatCard" in node:
+                                    return node
+                                for v in node.values():
+                                    res = find_stats(v)
+                                    if res: return res
+                            elif isinstance(node, list):
+                                for item in node:
+                                    res = find_stats(item)
+                                    if res: return res
+                            return None
+                            
+                        statsdata = find_stats(json_data)
+
+                    # Si el jugador no tiene stats procesables
                     if not statsdata:
-                        await asyncio.sleep(0.5 * (2 ** attempt)); continue
+                        return None 
 
                     stats = self.extract_all_stats(statsdata)
                     if not stats or len(stats) < 9:
-                        await asyncio.sleep(0.5 * (2 ** attempt)); continue
+                        return None
 
-                    # Liga/temporada de las STATS: DOM > (no dependemos del JSON)
-                    liga_stats = None
-                    temporada_stats = None
+                    # --- PASO 4: Formatear salida ---
+                    liga_stats, temporada_stats = None, None
                     info = season_dom_map.get(season_id) if isinstance(season_dom_map, dict) else None
                     if info:
                         label = (info.get("label") or "").strip()
                         group = (info.get("group") or "").strip()
-                        # Heurística: si hay group con pinta de temporada, úsalo; si no, intenta extraer "20xx/20yy" del label
                         temporada_stats = group or (re.search(r"20\d{2}\s*/\s*20\d{2}", label or "") or [None])[0]
-                        # La liga suele estar en el label del option (LaLiga, Ligue 1, etc.)
                         liga_stats = label if label else None
 
-                    # ¿Portero?
                     es_portero = any(k in stats for k in ("Saves", "Save percentage", "Clean sheets"))
 
-                    # Salida
                     datos_salida = jugador.copy()
                     datos_salida["estadísticas"] = stats
                     datos_salida["season_id_stats"] = season_id
@@ -419,23 +463,27 @@ class FotmobMassiveScraper:
                     else:
                         datos_salida["rasgos_jugador"] = traits
 
+                    # AÑADE ESTO: El chivato de éxito
+                    print(f"  [OK] Datos extraídos: {jugador['nombre']} ({jugador['equipo']})")
                     return datos_salida
 
                 except Exception as e:
-                    last_exc = e
-                    await asyncio.sleep(0.5 * (2 ** attempt))
+                    # En caso de error de conexión, reintenta
+                    await asyncio.sleep(2)
 
-            print(f"[WARN] Falló process_player_async para {jugador.get('nombre','unknown')} (id={player_id}). Último error: {last_exc}")
+            # AÑADE ESTO: El chivato de fallo o falta de stats
+            print(f"  [SKIPPED] No hay stats para {jugador.get('nombre','unknown')}.")
             return None
 
 
     async def process_players_by_liga_async(self, jugadores_liga, liga_nombre):
         print(f"\n🚀 Iniciando procesamiento asíncrono para {liga_nombre}")
         print(f"Total jugadores a procesar: {len(jugadores_liga)}")
-        semaphore = asyncio.Semaphore(8)
-        timeout = aiohttp.ClientTimeout(total=30)
-        connector = aiohttp.TCPConnector(limit=100, limit_per_host=8)
-        async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
+        
+        semaphore = asyncio.Semaphore(4) 
+        
+        # AQUÍ ESTÁ LA MAGIA: Impersonate="chrome110" simula la huella digital exacta de Chrome
+        async with AsyncSession(impersonate="chrome110") as session:
             tasks = [self.process_player_async(session, semaphore, jugador) for jugador in jugadores_liga]
             jugadores_procesados = []
             batch_size = 50
@@ -446,6 +494,7 @@ class FotmobMassiveScraper:
                     if result and not isinstance(result, Exception):
                         jugadores_procesados.append(result)
                 await asyncio.sleep(0.5)
+                
         print(f"✅ Liga {liga_nombre} completada: {len(jugadores_procesados)} jugadores con stats válidas")
         checkpoint_filename = INTERIM_DIR / f"liga_{liga_nombre.replace(' ', '_')}_procesada.json"
         checkpoint_filename.write_text(json.dumps(jugadores_procesados, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -495,15 +544,10 @@ async def main_async():
     out_db.write_text(json.dumps(jugadores_filtrados, ensure_ascii=False, indent=2), encoding="utf8")
 
     print(f"\n🎉 ¡COMPLETADO! Total jugadores procesados: {len(jugadores_filtrados)}")
-    print("Archivos generados:")
-    print(f"- {out_db} (con estadísticas)")
-    print(f"- {RAW_DIR / 'jugadores_fotmob_all.json'} (lista completa)")
-    print(f"- {INTERIM_DIR / 'liga_*_procesada.json'} (checkpoints por liga)")
 
     return jugadores_filtrados
 
 
 if __name__ == "__main__":
-    # Import aquí para evitar error si alguien ejecuta sin aiohttp instalado:
     import aiohttp  # noqa: F401
     asyncio.run(main_async())

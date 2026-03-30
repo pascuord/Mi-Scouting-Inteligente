@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import requests
 from dotenv import load_dotenv
+import time
 
 from scouting.agents.pipeline import pipeline
 import json
@@ -65,12 +66,35 @@ def get_last_message():
 
 
 def run_handler():
+    """Procesa el último mensaje si existe."""
     chat_id, query = get_last_message()
-    if not chat_id or not query:
-        print("No hay mensaje nuevo.")
-        return
-    print(f"[telegram] Recibido de {chat_id}: {query}")
-    pipeline.invoke({"query": query, "chat_id": str(chat_id)})
+    if chat_id and query:
+        print(f"[telegram] 📥 Recibido de {chat_id}: {query}")
+        # Aquí es donde ocurre la magia del TFM
+        pipeline.invoke({"query": query, "chat_id": str(chat_id)})
+        return True
+    return False
+
+def start_bot():
+    """Bucle infinito para mantener el bot vivo."""
+    print("🚀 Scouting Bot ONLINE y escuchando mensajes...")
+    print("Pulse Ctrl+C para detener.")
+    
+    while True:
+        try:
+            # Intentamos procesar. Si no hay mensaje, no pasa nada.
+            hay_mensaje = run_handler()
+            
+            # Si procesamos un mensaje, esperamos poco para ver si hay más.
+            # Si no hay nada, esperamos 2 segundos para no banear la IP.
+            time.sleep(1 if hay_mensaje else 2)
+            
+        except KeyboardInterrupt:
+            print("\n🛑 Bot detenido manualmente.")
+            break
+        except Exception as e:
+            print(f"⚠️ Error inesperado: {e}")
+            time.sleep(5) # Esperamos un poco más si hay error de conexión
 
 if __name__ == "__main__":
-    run_handler()
+    start_bot()

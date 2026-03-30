@@ -45,7 +45,7 @@ RUN pip install \
     plotly kaleido \
     sentence-transformers faiss-cpu polars unidecode aiohttp bs4 requests rapidfuzz \
     mplsoccer==1.2.2 Pillow>=10.3 matplotlib>=3.8 numpy>=1.26 \
-    brotli lxml
+    brotli lxml curl_cffi langchain-groq
 # 2) y AHORA la editable, la última
 RUN pip install -e .
 

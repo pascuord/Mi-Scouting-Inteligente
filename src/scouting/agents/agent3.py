@@ -1,7 +1,14 @@
 # src/scouting/agents/agente3.py
 from __future__ import annotations
-from openai import OpenAI
 from typing import List, Dict, Any
+import os
+
+# --- IMPORTS ANTIGUOS (OPENAI) COMENTADOS ---
+# from openai import OpenAI
+
+# --- NUEVOS IMPORTS (GROQ) ---
+from langchain_groq import ChatGroq
+from langchain_core.messages import SystemMessage, HumanMessage
 
 # System Prompt — scouting
 system_prompt = (
@@ -104,10 +111,18 @@ def _fmt_linea_metricas(nombre_stat: str, datos: Dict[str, Any], prefer_per90: b
     return f"- {nombre_stat}: s/d, peso {peso:.3f}"
 
 class Agente3Explanation:
-    def __init__(self, model: str = "gpt-4o", lang: str = "es"):
-        # coge OPENAI_API_KEY del entorno (.env)
-        self.client = OpenAI()
-        self.model = model
+    def __init__(self, lang: str = "es"):
+        # --- CÓDIGO ANTIGUO (OPENAI) COMENTADO ---
+        # self.client = OpenAI()
+        # self.model = "gpt-4o"
+        
+        # --- NUEVO CÓDIGO (GROQ) ---
+        self.llm = ChatGroq(
+            temperature=0.35,
+            model_name="llama-3.3-70b-versatile",
+            groq_api_key=os.getenv("GROQ_API_KEY")
+        )
+        
         self.lang = lang  # "es" | "en" | "fr" | "it" | "de" (del supervisor)
 
         # Inyecta el idioma humano-legible en el system prompt:
@@ -186,14 +201,26 @@ class Agente3Explanation:
             "Debe ser profesional destacando los aspectos positivos de cada jugador dentro del contexto de la búsqueda. "
             "Recuerda que son los mejores candidatos tras los filtros aplicados, que los percentiles por 90 deben valorarse especialmente si han jugado pocos minutos (<750) y deben mencionarse como cualidades destacadas los rasgos que superen el valor de percentil 75."
         )
-        resp = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role":"system","content":self.system_prompt},
-                {"role":"user","content":few_shot_example},
-                {"role":"user","content":user_prompt},
-            ],
-            temperature=0.35,
-            max_tokens=1500,
-        )
-        return resp.choices[0].message.content.strip()
+        
+        # --- CÓDIGO ANTIGUO (OPENAI) COMENTADO ---
+        # resp = self.client.chat.completions.create(
+        #     model=self.model,
+        #     messages=[
+        #         {"role":"system","content":self.system_prompt},
+        #         {"role":"user","content":few_shot_example},
+        #         {"role":"user","content":user_prompt},
+        #     ],
+        #     temperature=0.35,
+        #     max_tokens=1500,
+        # )
+        # return resp.choices[0].message.content.strip()
+
+        # --- NUEVO CÓDIGO (GROQ) ---
+        messages = [
+            SystemMessage(content=self.system_prompt),
+            HumanMessage(content=few_shot_example),
+            HumanMessage(content=user_prompt)
+        ]
+        
+        resp = self.llm.invoke(messages)
+        return resp.content.strip()

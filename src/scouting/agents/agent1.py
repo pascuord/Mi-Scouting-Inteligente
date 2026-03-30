@@ -1051,12 +1051,15 @@ class Agente1HardFilter:
             return df_filtrado, list(canon_targets)
         
         # paises_liga detectado antes por Agente1
+        # FIX: Inicializamos 'antes_pais' con el tamaño actual del DataFrame antes del filtro.
+        # Esto evita un 'UnboundLocalError' que haría crashear el bot al imprimir los logs (DEBUG)
+        # en caso de que la consulta del usuario no haya activado ningún filtro numérico previo.
+        antes_pais = df.height  # <-- CREAMOS LA VARIABLE AQUÍ
         df, paises_detectados = filtrar_por_pais_liga(df, paises_liga)
-        if self.DEBUG: print(f"[A1][PaisLiga] detectados={paises_detectados}")
-        if self.DEBUG: print(f"[A1][PaisLiga] filtro: {antes} -> {df.height}")
-        else:
-           if self.DEBUG: print("[A1][PaisLiga] omitido por contradiccion con ligas explicitas")
-
+        
+        if self.DEBUG: 
+            print(f"[A1][PaisLiga] detectados={paises_detectados}")
+            print(f"[A1][PaisLiga] filtro: {antes_pais} -> {df.height}")
 
         print(f"Agente 1: Filtrados {df.height} jugadores tras aplicar filtros clave.")
         return df, tipo

@@ -9,8 +9,10 @@ import requests
 import plotly.io as pio
 from langgraph.graph import StateGraph
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv
+
+# --- NUEVO IMPORT PARA GROQ ---
+from langchain_groq import ChatGroq
 
 # Agentes
 from scouting.agents.agent0 import Agente0VectorRetriever
@@ -23,7 +25,14 @@ from scouting.agents.agent4 import GraphComparisonAgent
 # ================== ENV & KALEIDO ==================
 load_dotenv()  # lee .env en la raíz
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
-OPENAI_MODEL_SUPERVISOR = os.getenv("OPENAI_MODEL_SUPERVISOR", "gpt-4o")
+
+# ================== CONFIGURACIÓN DEL LLM GLOBAL ==================
+# Definimos el LLM aquí arriba para que TODAS las funciones puedan usarlo
+llm = ChatGroq(
+    temperature=0,
+    model_name="llama-3.3-70b-versatile", # <--- ESTE ES EL NUEVO MODELO 
+    groq_api_key=os.getenv("GROQ_API_KEY")
+)
 
 #Configurar Chrome para Kaleido v1
 def _set_chromium_executable(path: str):
@@ -114,11 +123,10 @@ def nodo_supervisor(state: PipelineState) -> PipelineState:
      "Normaliza roles a español (winger→extremo, fullback→lateral, holding midfielder→mediocentro defensivo, box-to-box→interior).\n"
      "5) Si el original ya está en español (lang='es'), 'query_es' debe ser EXACTAMENTE el original (sin reescribirlo).\n\n"
      "EJEMPLOS:\n"
-     "EJEMPLOS:\n"
-    "- 'Extremo regateador…' → {{\"domain\": \"ok\", \"lang\": \"es\", \"query_es\": \"Extremo regateador…\"}}\n"
-    "- 'Best goalkeeper…' → {{\"domain\": \"ok\", \"lang\": \"en\", \"query_es\": \"Portero menor de 25 con buena distribución\"}}\n"
-    "- '¿Cuál es la fórmula de la Coca-Cola?' → {{\"domain\": \"fin\", \"lang\": \"es\", \"query_es\": \"¿Cuál es la fórmula de la Coca-Cola?\"}}\n"
-    "- 'Tiempo mañana en Madrid' → {{\"domain\": \"fin\", \"lang\": \"es\", \"query_es\": \"Tiempo mañana en Madrid\"}}\n"
+     "- 'Extremo regateador…' → {{\"domain\": \"ok\", \"lang\": \"es\", \"query_es\": \"Extremo regateador…\"}}\n"
+     "- 'Best goalkeeper…' → {{\"domain\": \"ok\", \"lang\": \"en\", \"query_es\": \"Portero menor de 25 con buena distribución\"}}\n"
+     "- '¿Cuál es la fórmula de la Coca-Cola?' → {{\"domain\": \"fin\", \"lang\": \"es\", \"query_es\": \"¿Cuál es la fórmula de la Coca-Cola?\"}}\n"
+     "- 'Tiempo mañana en Madrid' → {{\"domain\": \"fin\", \"lang\": \"es\", \"query_es\": \"Tiempo mañana en Madrid\"}}\n"
     ),
     ("human",
      "Decide dominio e idioma (es/en/fr/it/de) y, si procede, TRADUCE:\n\n"
@@ -126,8 +134,19 @@ def nodo_supervisor(state: PipelineState) -> PipelineState:
      "Responde SOLO JSON válido.")
     ])
 
-    llm = ChatOpenAI(model=OPENAI_MODEL_SUPERVISOR, temperature=0.1)
+    # Usamos el LLM global de Groq
     raw = (prompt | llm).invoke({"query": state["query"]}).content.strip()
+    
+    # Limpieza en caso de que el LLM meta markdown ```json ... ```
+    # FIX: Sanitización de respuesta del LLM (Groq/Llama 3).
+    # Previene JSONDecodeError eliminando los bloques de formato Markdown (```json ... ```) 
+    # que el modelo suele añadir alrededor de su respuesta estructural.
+    if raw.startswith("```json"):
+        raw = raw.replace("```json", "", 1)
+    if raw.endswith("```"):
+        raw = raw[::-1].replace("```", "", 1)[::-1]
+    raw = raw.strip()
+
     data = _json_loads_relaxed(raw)
 
     decision = (data.get("domain") or "fin").lower()

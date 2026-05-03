@@ -10,9 +10,9 @@ import plotly.io as pio
 from langgraph.graph import StateGraph
 from langchain_core.prompts import ChatPromptTemplate
 from dotenv import load_dotenv
-
-# --- NUEVO IMPORT PARA GROQ ---
 from langchain_groq import ChatGroq
+from langchain_openai import ChatOpenAI
+from langchain_core.language_models.chat_models import BaseChatModel
 
 # Agentes
 from scouting.agents.agent0 import Agente0VectorRetriever
@@ -20,6 +20,7 @@ from scouting.agents.agent1 import Agente1HardFilter
 from scouting.agents.agent2 import ScoreEvaluatorAgent
 from scouting.agents.agent3 import Agente3Explanation
 from scouting.agents.agent4 import GraphComparisonAgent
+from scouting.agents.common import get_llm_provider, get_openai_key, jlog
 
 
 # ================== ENV & KALEIDO ==================
@@ -27,12 +28,29 @@ load_dotenv()  # lee .env en la raíz
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 
 # ================== CONFIGURACIÓN DEL LLM GLOBAL ==================
-# Definimos el LLM aquí arriba para que TODAS las funciones puedan usarlo
-llm = ChatGroq(
-    temperature=0,
-    model_name="llama-3.3-70b-versatile", # <--- ESTE ES EL NUEVO MODELO 
-    groq_api_key=os.getenv("GROQ_API_KEY")
-)
+# Factory global para asegurar el mismo proveedor/modelo en todo el pipeline (diseño experimental del TFM).
+LLM_PROVIDER = get_llm_provider()
+SUPERVISOR_MODEL_NAME = ""
+
+def _build_supervisor_llm() -> BaseChatModel:
+    global SUPERVISOR_MODEL_NAME
+    if LLM_PROVIDER == "openai":
+        SUPERVISOR_MODEL_NAME = "gpt-5.4-mini"
+        return ChatOpenAI(
+            model=SUPERVISOR_MODEL_NAME,
+            temperature=0,
+            api_key=get_openai_key(),
+        )
+    if LLM_PROVIDER == "groq":
+        SUPERVISOR_MODEL_NAME = "llama-3.3-70b-versatile"
+        return ChatGroq(
+            temperature=0,
+            model_name=SUPERVISOR_MODEL_NAME,
+            groq_api_key=os.getenv("GROQ_API_KEY"),
+        )
+    raise ValueError(f"Proveedor LLM no soportado en pipeline: {LLM_PROVIDER}")
+
+llm = _build_supervisor_llm()
 
 #Configurar Chrome para Kaleido v1
 def _set_chromium_executable(path: str):
@@ -134,7 +152,8 @@ def nodo_supervisor(state: PipelineState) -> PipelineState:
      "Responde SOLO JSON válido.")
     ])
 
-    # Usamos el LLM global de Groq
+    # Trazabilidad de proveedor/modelo para confirmar consistencia de backend en el experimento del TFM.
+    jlog("supervisor_llm_invoke", provider=LLM_PROVIDER, model=SUPERVISOR_MODEL_NAME)
     raw = (prompt | llm).invoke({"query": state["query"]}).content.strip()
     
     # Limpieza en caso de que el LLM meta markdown ```json ... ```

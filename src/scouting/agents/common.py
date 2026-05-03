@@ -1,6 +1,7 @@
 import os, json, sys, datetime
 from dotenv import load_dotenv
 import logging
+from typing import Final
 
 load_dotenv()  # lee .env si existe
 
@@ -8,6 +9,7 @@ load_dotenv()  # lee .env si existe
 _handler = logging.StreamHandler(sys.stdout)
 logging.basicConfig(level=os.getenv("LOG_LEVEL","INFO"), handlers=[_handler], format="%(message)s")
 log = logging.getLogger("scouting")
+DEFAULT_LLM_PROVIDER: Final[str] = "openai"
 
 def jlog(event: str, **kw):
     log.info(json.dumps({"ts": datetime.datetime.utcnow().isoformat()+"Z", "event": event, **kw}))
@@ -31,7 +33,11 @@ def get_openai_model_supervisor() -> str:
     return env_str("OPENAI_MODEL_SUPERVISOR", "gpt-4o-mini")
 
 def get_openai_key() -> str:
-    return env_str("OPENAI_API_KEY", "")
+    # Credencial sensible gestionada siempre desde variables de entorno.
+    return os.getenv("OPENAI_API_KEY", "")
+
+def get_llm_provider() -> str:
+    return env_str("LLM_PROVIDER", DEFAULT_LLM_PROVIDER).lower()
 
 def get_telegram_token() -> str:
     return env_str("TELEGRAM_BOT_TOKEN", "")

@@ -8,7 +8,10 @@ import os
 
 # --- NUEVOS IMPORTS (GROQ) ---
 from langchain_groq import ChatGroq
+from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.language_models.chat_models import BaseChatModel
+from scouting.agents.common import get_llm_provider, get_openai_key, jlog
 
 # System Prompt — scouting
 system_prompt = (
@@ -111,18 +114,11 @@ def _fmt_linea_metricas(nombre_stat: str, datos: Dict[str, Any], prefer_per90: b
     return f"- {nombre_stat}: s/d, peso {peso:.3f}"
 
 class Agente3Explanation:
-    def __init__(self, lang: str = "es"):
-        # --- CÓDIGO ANTIGUO (OPENAI) COMENTADO ---
-        # self.client = OpenAI()
-        # self.model = "gpt-4o"
-        
-        # --- NUEVO CÓDIGO (GROQ) ---
-        self.llm = ChatGroq(
-            temperature=0.35,
-            model_name="llama-3.3-70b-versatile",
-            groq_api_key=os.getenv("GROQ_API_KEY")
-        )
-        
+    def __init__(self, lang: str = "es") -> None:
+        # Factory de proveedor LLM para intercambiabilidad de modelos en el diseño experimental del TFM.
+        self.provider = get_llm_provider()
+        self.model_name = ""
+        self.llm = self._build_llm()
         self.lang = lang  # "es" | "en" | "fr" | "it" | "de" (del supervisor)
 
         # Inyecta el idioma humano-legible en el system prompt:
@@ -134,6 +130,23 @@ class Agente3Explanation:
             "es": "español",
         }.get((lang or "es").lower(), "español")
         self.system_prompt = system_prompt.format(lang=lang_label)
+
+    def _build_llm(self) -> BaseChatModel:
+        if self.provider == "openai":
+            self.model_name = "gpt-5.4-mini"
+            return ChatOpenAI(
+                model=self.model_name,
+                temperature=0.35,
+                api_key=get_openai_key(),
+            )
+        if self.provider == "groq":
+            self.model_name = "llama-3.3-70b-versatile"
+            return ChatGroq(
+                temperature=0.35,
+                model_name=self.model_name,
+                groq_api_key=os.getenv("GROQ_API_KEY"),
+            )
+        raise ValueError(f"Proveedor LLM no soportado: {self.provider}")
 
 
     def formatear_jugadores(self, resultados: List[Dict]) -> str:
@@ -215,12 +228,20 @@ class Agente3Explanation:
         # )
         # return resp.choices[0].message.content.strip()
 
-        # --- NUEVO CÓDIGO (GROQ) ---
+        # Llamada agnóstica al proveedor (OpenAI/Groq) para comparativas experimentales del TFM.
         messages = [
             SystemMessage(content=self.system_prompt),
             HumanMessage(content=few_shot_example),
             HumanMessage(content=user_prompt)
         ]
-        
+
+        # Traza metodológica para validar proveedor/modelo en el experimento comparativo del TFM.
+        jlog(
+            "agent3_llm_invoke",
+            provider=self.provider,
+            model=self.model_name,
+            lang=self.lang,
+            candidates=min(len(resultados), 3),
+        )
         resp = self.llm.invoke(messages)
         return resp.content.strip()

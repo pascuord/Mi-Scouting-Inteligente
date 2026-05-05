@@ -235,7 +235,31 @@ def nodo_resultados_completos(state: PipelineState) -> PipelineState:
     a3 = Agente3Explanation(lang=state.get("lang","es"))
     a4 = GraphComparisonAgent()
 
-    explicacion = a3.explicar_resultados(state["query"], state["resultados"])
+    # --- FLUJO AGENTE 3 (Explicación / OpenAI-Groq) ---
+    jlog("agent3_explanation_start", query=state["query"], candidates=len(state.get("resultados", [])))
+    
+    try:
+        if not state.get("resultados"):
+            # Fallback local si no hay resultados para evitar llamada innecesaria al LLM
+            explicacion = {
+                "en": "No players were found matching your criteria.",
+                "fr": "Aucun joueur n'a été trouvé correspondant à vos critères.",
+                "it": "Non sono stati trovati giocatori corrispondenti ai tuoi criteri.",
+                "de": "Es wurden keine Spieler gefunden, die Ihren Kriterien entsprechen.",
+                "es": "No se han encontrado jugadores que cumplan con los criterios seleccionados."
+            }.get(state.get("lang", "es"), "No se han encontrado resultados.")
+        else:
+            # El Agente 3 escribe en la clave 'explicacion' tras invocar al LLM
+            explicacion = a3.explicar_resultados(state["query"], state["resultados"])
+        
+        if not explicacion:
+            explicacion = "Error: El Agente 3 generó una respuesta vacía."
+            
+        jlog("agent3_explanation_done", success=True, length=len(explicacion))
+    except Exception as e:
+        jlog("agent3_explanation_error", error=str(e))
+        explicacion = "Lo siento, se produjo un error al generar la explicación técnica."
+
     tmpdir = tempfile.gettempdir()
 
     # --- Collage de radares (PNG) ---

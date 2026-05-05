@@ -31,14 +31,19 @@ from pathlib import Path
 # ==== Config =====
 load_dotenv()
 
-def get_absolute_path(path_str: str, default: str | Path) -> Path:
-    p = Path(path_str)
-    # Si es relativo, interpretarlo como absoluto dentro del contenedor (en /data)
-    return p if p.is_absolute() else Path(default)
+def get_data_dir() -> Path:
+    env_data = os.getenv("DATA_DIR")
+    if env_data and os.path.isabs(env_data):
+        return Path(env_data)
+    root_repo = Path(__file__).resolve().parents[3]
+    local_data = root_repo / "data"
+    if not local_data.exists() and os.path.exists("/data"):
+        return Path("/data")
+    return local_data
 
-DATA_DIR = get_absolute_path(os.getenv("DATA_DIR", "/data"), "/data")
-RAW_DIR = get_absolute_path(os.getenv("RAW_DIR", str(DATA_DIR / "raw")), DATA_DIR / "raw")
-INTERIM_DIR = get_absolute_path(os.getenv("INTERIM_DIR", str(DATA_DIR / "interim")), DATA_DIR / "interim")
+DATA_DIR = get_data_dir()
+RAW_DIR = DATA_DIR / "raw"
+INTERIM_DIR = DATA_DIR / "interim"
 
 RAW_DIR.mkdir(parents=True, exist_ok=True)
 INTERIM_DIR.mkdir(parents=True, exist_ok=True)
@@ -360,6 +365,15 @@ class TransfermarktMassiveScraper:
                 if foot_tag:
                     foot = foot_tag.get_text(strip=True)
 
+            citizenship = None
+            # Buscamos la etiqueta "Citizenship" o "Nacionalidad"
+            cit_label = profile_soup.find("span", string=re.compile(r"Citizenship|Nacionalidad"))
+            if cit_label:
+                cit_tag = cit_label.find_next("span", class_=re.compile(r"info-table__content"))
+                if cit_tag:
+                    citizenship = cit_tag.get_text(strip=True)
+                    # A veces hay varias (ej. "Spain, Brazil"), las dejamos como string
+
             main_position = ""
             other_positions: List[str] = []
             main_dt = profile_soup.find("dt", string=re.compile(r"Main position"))
@@ -385,6 +399,7 @@ class TransfermarktMassiveScraper:
                 "profile_url": f"{self.base_url}{player_url}",
                 "height": height,
                 "foot": foot,
+                "citizenship": citizenship,
                 "main_position": main_position,
                 "other_positions": other_positions,
                 "contract_details": contract_details,

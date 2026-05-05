@@ -8,17 +8,19 @@ import pathlib
 from dotenv import load_dotenv
 
 # --- Bootstrap para que funcione tanto con `python -m` como con ruta directa ---
-# Raíz del proyecto = .../proyectosjg/
-ROOT = pathlib.Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+# Raíz del proyecto (donde está src/)
+ROOT_REPO = pathlib.Path(__file__).resolve().parents[3]
+# Carpeta de código (src/)
+SRC_DIR = ROOT_REPO / "src"
 
-# Ahora las imports absolutas funcionan en ambos casos
-from src.scouting.etl.collect_fotmob import main_async as fotmob_main_async
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
+# Ahora las imports funcionan usando el paquete 'scouting'
+from scouting.etl.collect_fotmob import main_async as fotmob_main_async
 from scouting.etl.collect_transfermarkt import run as tm_run
-
-from src.scouting.etl.merge_data import run as merge_run
-from src.scouting.etl.vector_store_indexing import run as index_run
+from scouting.etl.merge_data import run as merge_run
+from scouting.etl.vector_store_indexing import run as index_run
 
 load_dotenv()
 

@@ -61,13 +61,27 @@ def _soup_from_response(resp: requests.Response) -> BeautifulSoup:
 # ==== Config =====
 load_dotenv()
 
-def get_absolute_path(path_str: str, default: str) -> Path:
-    path = Path(path_str)
-    return path if path.is_absolute() else Path(default)
+def get_data_dir() -> Path:
+    # 1. Prioridad: Variable de entorno (si es absoluta)
+    env_data = os.getenv("DATA_DIR")
+    if env_data and os.path.isabs(env_data):
+        return Path(env_data)
+    
+    # 2. Fallback: Buscar carpeta 'data' en la raíz del repo
+    # Asumimos que este archivo está en src/scouting/etl/
+    root_repo = Path(__file__).resolve().parents[3]
+    local_data = root_repo / "data"
+    
+    # Si no existe y estamos en Docker, quizás /data sí exista
+    if not local_data.exists() and os.path.exists("/data"):
+        return Path("/data")
+        
+    return local_data
 
-DATA_DIR = get_absolute_path(os.getenv("DATA_DIR", "/data"), "/data")
-RAW_DIR = get_absolute_path(os.getenv("RAW_DIR", str(DATA_DIR / "raw")), DATA_DIR / "raw")
-INTERIM_DIR = get_absolute_path(os.getenv("INTERIM_DIR", str(DATA_DIR / "interim")), DATA_DIR / "interim")
+DATA_DIR = get_data_dir()
+RAW_DIR = DATA_DIR / "raw"
+INTERIM_DIR = DATA_DIR / "interim"
+
 RAW_DIR.mkdir(parents=True, exist_ok=True)
 INTERIM_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -187,44 +201,66 @@ class FotmobMassiveScraper:
         resp = self.session.get(url_squad, headers=self.headers, timeout=30)
         soup = _soup_from_response(resp)
         jugadores = []
-        for fila in soup.find_all('tr'):
-            link = fila.find('a', href=True)
+
+        # 1. Intentar estructura moderna (divs con clases de FotMob)
+        player_rows = soup.find_all(lambda tag: tag.name == 'div' and any("SquadPlayerLink" in cls for cls in (tag.get("class") or [])))
+        
+        # 2. Si no hay divs, intentar con la estructura de tabla clásica (tr)
+        if not player_rows:
+            player_rows = soup.find_all('tr')
+
+        for row in player_rows:
+            link = row.find('a', href=True)
             if not link:
                 continue
             href = link['href']
-            match = re.match(r"^/es/players/(\d+)", href)
+            match = re.search(r"/players/(\d+)", href)
             if not match:
                 continue
+            
             id_jugador = int(match.group(1))
+            
+            # Extraer nombre (suele ser el primer span o el texto del link)
             nombre_span = link.find('span')
-            nombre = nombre_span.text.strip() if nombre_span else ""
-            columnas = fila.find_all('td')
+            nombre = nombre_span.text.strip() if nombre_span else link.text.strip()
+            
+            # Posición y Nacionalidad
             posicion = ""
-            for c in columnas:
-                if c.has_attr('title'):
-                    pos = c['title'].strip().lower()
+            nacionalidad = ""
+            
+            # Buscamos el link de país
+            country_link = row.find(lambda tag: tag.name == 'a' and any("PlayerCountryLink" in cls for cls in (tag.get("class") or [])))
+            if country_link:
+                nacionalidad = country_link.text.strip()
+            
+            # Si no encontramos nacionalidad así, buscamos por imagen o clases
+            if not nacionalidad:
+                country_container = row.find(lambda tag: any("PlayerCountry" in str(cls) for cls in (tag.get("class") or [])))
+                if country_container:
+                    nacionalidad = country_container.text.strip()
+
+            # Posición: suele ser un span corto (ej. "POR", "DEF") o un title
+            all_spans = [s.text.strip() for s in row.find_all('span') if s.text.strip()]
+            for txt in all_spans:
+                txt_low = txt.lower()
+                if txt_low in ("portero", "defensa", "delantero", "centrocampista", "por", "def", "cen", "del", "gk", "df", "mf", "fw"):
+                    posicion = txt_low
+                    break
+            
+            if not posicion:
+                # Intentar buscar en atributos title
+                for tag in row.find_all(True, title=True):
+                    pos = tag['title'].strip().lower()
                     if pos and len(pos) <= 25:
                         posicion = pos
                         break
-                elif c.text.strip():
-                    txt = c.text.strip().lower()
-                    if txt in ("portero","defensa","delantero","centrocampista","entrenador"):
-                        posicion = txt
-                        break
-            if "entrenador" in posicion or "manager" in posicion or not posicion:
+
+            if "entrenador" in posicion or "manager" in posicion:
                 continue
             
-            nacionalidad = ""
-            for c in columnas:
-                country_div = c.find('div', class_="css-14ju9uz-PlayerCountry")
-                if country_div:
-                    span_pais = country_div.find('span')
-                    if span_pais:
-                        nacionalidad = span_pais.text.strip()
-                    break
-
             if any(j["id_jugador"] == id_jugador for j in jugadores):
                 continue
+
             jugadores.append({
                 "id_jugador": id_jugador,
                 "nombre": nombre,
@@ -233,6 +269,7 @@ class FotmobMassiveScraper:
                 "posicion": posicion,
                 "nacionalidad": nacionalidad
             })
+            
         print(f"      [INFO] {len(jugadores)} jugadores encontrados.")
         return jugadores
 

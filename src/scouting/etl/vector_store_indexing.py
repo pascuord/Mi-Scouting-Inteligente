@@ -6,12 +6,31 @@ import numpy as np
 from typing import Any, Dict, List
 from sentence_transformers import SentenceTransformer
 
+def get_data_dir() -> str:
+    # 1. Prioridad: Variable de entorno (si es absoluta)
+    env_data = os.getenv("DATA_DIR")
+    if env_data and os.path.isabs(env_data):
+        return env_data
+    
+    # 2. Fallback: Buscar carpeta 'data' en la raíz del repo
+    import pathlib
+    root_repo = pathlib.Path(__file__).resolve().parents[3]
+    local_data = root_repo / "data"
+    
+    # Si no existe y estamos en Docker, quizás /data sí exista
+    if not local_data.exists() and os.path.exists("/data"):
+        return "/data"
+        
+    return str(local_data)
+
+DATA_DIR = get_data_dir()
+
 # Logs utilitarios (opcional): si no los tienes, cámbialos por prints
 try:
     from scouting.agents.common import get_indices_dir, jlog
 except Exception:
     def get_indices_dir() -> str:
-        return os.environ.get("INDICES_DIR", "/data/processed/indices")
+        return os.environ.get("INDICES_DIR", os.path.join(DATA_DIR, "processed", "indices"))
     def jlog(event: str, **kw):  # fallback
         print(json.dumps({"event": event, **kw}, ensure_ascii=False))
 
@@ -20,11 +39,11 @@ MODEL_NAME = "intfloat/multilingual-e5-base"
 
 DB_JUGADORES = os.environ.get(
     "DB_JUGADORES",
-    "/data/processed/merged/db_jugadores.json"
+    os.path.join(DATA_DIR, "processed", "merged", "db_jugadores.json")
 )
 DB_PORTEROS = os.environ.get(
     "DB_PORTEROS",
-    "/data/processed/merged/db_porteros.json"
+    os.path.join(DATA_DIR, "processed", "merged", "db_porteros.json")
 )
 
 
@@ -36,10 +55,8 @@ FAISS_FILENAMES = {
 
 # Rutas donde intentaremos encontrar detalles por jugador (para enriquecer `info` si falta)
 DETAILS_DIR_CANDIDATES = [
-    os.path.join("/data", "processed", "details"),
-    os.path.join("data", "processed", "details"),
-    os.path.join("/data", "interim", "details"),
-    os.path.join("data", "interim", "details"),
+    os.path.join(DATA_DIR, "processed", "details"),
+    os.path.join(DATA_DIR, "interim", "details"),
 ]
 
 # ---------- helpers de normalización / enriquecimiento ----------

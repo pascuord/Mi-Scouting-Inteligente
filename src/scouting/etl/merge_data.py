@@ -12,26 +12,30 @@ from rapidfuzz import fuzz, process
 # -------- Config y rutas --------
 load_dotenv()
 
-def get_absolute_path(path_str: str, default: str) -> Path:
-    path = Path(path_str)
-    # Si es relativo, interpretarlo como absoluto dentro del contenedor
-    return path if path.is_absolute() else Path(default)
+def get_data_dir() -> Path:
+    env_data = os.getenv("DATA_DIR")
+    if env_data and os.path.isabs(env_data):
+        return Path(env_data)
+    root_repo = Path(__file__).resolve().parents[3]
+    local_data = root_repo / "data"
+    if not local_data.exists() and os.path.exists("/data"):
+        return Path("/data")
+    return local_data
 
-# En local: ./data/...     En Docker: /data/...
-DATA_DIR = get_absolute_path(os.getenv("DATA_DIR", "/data"), "/data")
-RAW_DIR = get_absolute_path(os.getenv("RAW_DIR", str(DATA_DIR / "raw")), DATA_DIR / "raw")
-INTERIM_DIR = get_absolute_path(os.getenv("INTERIM_DIR", str(DATA_DIR / "interim")), DATA_DIR / "interim")
-PROCESSED_DIR = get_absolute_path(os.getenv("PROCESSED_DIR", str(DATA_DIR / "processed")), DATA_DIR / "processed")
-MERGED_DIR = get_absolute_path(os.getenv("MERGED_DIR", str(PROCESSED_DIR / "merged")), PROCESSED_DIR / "merged")
+DATA_DIR = get_data_dir()
+RAW_DIR = DATA_DIR / "raw"
+INTERIM_DIR = DATA_DIR / "interim"
+PROCESSED_DIR = DATA_DIR / "processed"
+MERGED_DIR = PROCESSED_DIR / "merged"
 
+MERGED_DIR.mkdir(parents=True, exist_ok=True)
 
-FOTMOB_PATH = Path("/data/raw/db_fotmob.json")
-TM_PATH = Path("/data/raw/db_transfermarkt.json")
+FOTMOB_PATH = RAW_DIR / "db_fotmob.json"
+TM_PATH = RAW_DIR / "db_transfermarkt.json"
 
 OUT_COMBINADA = MERGED_DIR / "db_combinada.json"
 OUT_JUGADORES = MERGED_DIR / "db_jugadores.json"
 OUT_PORTEROS  = MERGED_DIR / "db_porteros.json"
-MERGED_DIR.mkdir(parents=True, exist_ok=True)
 
 # -------- Apodos y utilidades --------
 APODOS_HARDCODE = {
@@ -190,6 +194,7 @@ def run():
         if is_portero(p_tm_best):
             out = {
                 **p_fm,
+                'nacionalidad': p_fm.get('nacionalidad') or p_tm_best.get('citizenship'),
                 'url_jugador_transfermarkt': tm_id,
                 'main_position': p_tm_best.get('main_position'),
                 'foot': p_tm_best.get('foot'),
@@ -204,6 +209,7 @@ def run():
         else:
             out = {
                 **p_fm,
+                'nacionalidad': p_fm.get('nacionalidad') or p_tm_best.get('citizenship'),
                 'url_jugador_transfermarkt': tm_id,
                 'main_position': p_tm_best.get('main_position'),
                 'other_positions': p_tm_best.get('other_positions'),
@@ -250,6 +256,7 @@ def run():
         is_gk = pos_bucket(p_tm_best.get('main_position')) == 'GK'
         out = {
             **p_fm,
+            'nacionalidad': p_fm.get('nacionalidad') or p_tm_best.get('citizenship'),
             'url_jugador_transfermarkt': tm_id,
             'main_position': p_tm_best.get('main_position'),
             'other_positions': p_tm_best.get('other_positions'),

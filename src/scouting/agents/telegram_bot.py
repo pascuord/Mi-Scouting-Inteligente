@@ -7,7 +7,25 @@ import time
 
 from scouting.agents.pipeline import pipeline
 import json
-LAST_UPDATE_FILE = "/data/last_update_id.txt"
+def get_data_dir() -> str:
+    # 1. Prioridad: Variable de entorno (si es absoluta)
+    env_data = os.getenv("DATA_DIR")
+    if env_data and os.path.isabs(env_data):
+        return env_data
+    
+    # 2. Fallback: Buscar carpeta 'data' en la raíz del repo
+    import pathlib
+    root_repo = pathlib.Path(__file__).resolve().parents[3]
+    local_data = root_repo / "data"
+    
+    # Si no existe y estamos en Docker, quizás /data sí exista
+    if not local_data.exists() and os.path.exists("/data"):
+        return "/data"
+        
+    return str(local_data)
+
+DATA_DIR = get_data_dir()
+LAST_UPDATE_FILE = os.path.join(DATA_DIR, "last_update_id.txt")
 
 load_dotenv()
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")

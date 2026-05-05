@@ -35,7 +35,7 @@ SUPERVISOR_MODEL_NAME = ""
 def _build_supervisor_llm() -> BaseChatModel:
     global SUPERVISOR_MODEL_NAME
     if LLM_PROVIDER == "openai":
-        SUPERVISOR_MODEL_NAME = "gpt-5.4-mini"
+        SUPERVISOR_MODEL_NAME = "gpt-4o-mini"
         return ChatOpenAI(
             model=SUPERVISOR_MODEL_NAME,
             temperature=0,
@@ -334,7 +334,12 @@ def nodo_send_to_telegram(state: PipelineState) -> PipelineState:
 
     # texto
     try:
-        requests.post(f"{base_url}/sendMessage", data={"chat_id": chat_id, "text": mensaje})
+        # Telegram API limit is 4096 characters per message
+        max_length = 4000
+        for i in range(0, len(mensaje), max_length):
+            chunk = mensaje[i:i+max_length]
+            resp_txt = requests.post(f"{base_url}/sendMessage", data={"chat_id": chat_id, "text": chunk})
+            print(f"[telegram] respuesta texto {resp_txt.status_code}: {resp_txt.text[:200]}")
     except Exception as e:
         print(f"[telegram] error enviando mensaje: {e}")
 

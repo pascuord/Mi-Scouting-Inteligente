@@ -133,7 +133,7 @@ class Agente3Explanation:
 
     def _build_llm(self) -> BaseChatModel:
         if self.provider == "openai":
-            self.model_name = "gpt-5.4-mini"
+            self.model_name = "gpt-4o-mini"
             return ChatOpenAI(
                 model=self.model_name,
                 temperature=0.35,

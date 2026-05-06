@@ -73,7 +73,7 @@ class Agente0VectorRetriever:
         self.encoder = encoder
 
         # Base de índices: desde env o por defecto
-        self.base = os.getenv("INDICES_DIR", "/data/processed/indices")
+        self.base = os.getenv("INDICES_DIR", "/data_local/processed/indices")
 
         self.indices = {
             "jugador": {

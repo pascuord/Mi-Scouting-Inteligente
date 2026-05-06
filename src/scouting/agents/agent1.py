@@ -671,14 +671,23 @@ class Agente1HardFilter:
 
     def extraer_contrato_max(self, query: str) -> float | None:
         q = self._norm(query)
-        m = re.search(r"(?:menos|menor|inferior)\s*de\s*(\d+(?:\.\d+)?)\s*anos", q)
-        if m:
-            try: return float(m.group(1))
-            except: pass
+
+        # Patrones explícitos con "último año" o "último año de contrato"
+        if re.search(r"(?:ultim|últim)o\s+a(?:n|ñ)o(?:s)?(?:\s+de\s+contrato)?", q):
+            return 1.0
+
+        # Solo interpretamos "menos de X años" como contrato si hay contexto claro de contrato.
+        if any(w in q for w in ["contrato", "contract", "quede", "queden", "de contrato", "año de contrato", "años de contrato"]):
+            m = re.search(r"(?:menos|menor|inferior)\s*de\s*(\d+(?:\.\d+)?)\s*a(?:n|ñ)os", q)
+            if m:
+                try: return float(m.group(1))
+                except: pass
+
         # patrón: "le quedan menos de dos años", "menos de 2 años de contrato"
         for m in re.finditer(r"(?:menos\s+de\s+)(\d+)\s+a(?:n|ñ)os", q):
-            max_anios = int(m.group(1))
-            return max_anios
+            if any(w in q for w in ["contrato", "quede", "queden", "de contrato"]):
+                max_anios = int(m.group(1))
+                return max_anios
         
         for m in re.finditer(r"(?:qu(?:e|é)\s+(?:le\s+)?quede[n]?\s+(?:menos\s+de\s+)?)(\d+)\s+a(?:n|ñ)os(?:\s+de\s+contrato)?", q):
             max_anios = int(m.group(1))
@@ -692,16 +701,10 @@ class Agente1HardFilter:
 
         # en el parser
         for word, val in NUMERAL_MAP.items():
-            if f"menos de {word} año" in query or f"menos de {word} años" in query:
+            if re.search(rf"menos\s+de\s+{word}\s+a(?:n|ñ)os(?:\s+de\s+contrato)?", q) and any(w in q for w in ["contrato", "quede", "queden", "de contrato"]):
                 return val
-            
-        # Detectar "que le queden menos de dos años de contrato"
-        for word, val in NUMERAL_MAP.items():
-            patron = rf"(?:qu(?:e|é)\s+(?:le\s+)?quede[n]?\s+menos\s+de\s+{word}\s+a(?:n|ñ)os(?:\s+de\s+contrato)?)"
-            if re.search(patron, q):
+            if re.search(rf"qu(?:e|é)\s+(?:le\s+)?quede[n]?\s+menos\s+de\s+{word}\s+a(?:n|ñ)os(?:\s+de\s+contrato)?", q):
                 return val
-
-
 
         return None
     
@@ -976,15 +979,29 @@ class Agente1HardFilter:
             def years_left(contract_json: Any) -> float | None:
                 try:
                     d = json.loads(contract_json) if isinstance(contract_json, str) else (contract_json or {})
-                    fecha = d.get("contract_expires")
-                    if not fecha: return None
-                    dt = datetime.datetime.strptime(fecha, "%b %d, %Y").date()
-                    return (dt - hoy).days / 365.0
+                    fecha = d.get("contract_expires") or d.get("expires") or d.get("contract_end")
+                    if not fecha:
+                        return None
+                    fecha = str(fecha).strip()
+                    for fmt in ["%b %d, %Y", "%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d", "%d %B %Y", "%Y/%m/%d", "%d.%m.%Y"]:
+                        try:
+                            dt = datetime.datetime.strptime(fecha, fmt).date()
+                            return (dt - hoy).days / 365.0
+                        except Exception:
+                            continue
+                    return None
                 except Exception:
                     return None
             df = df.with_columns(pl.col("contract_details").map_elements(years_left, return_dtype=pl.Float64).alias("años_contrato"))
         if contrato_max is not None and "años_contrato" in df.columns:
-            antes = df.height; df = df.filter(pl.col("años_contrato") < contrato_max)
+            if self.DEBUG:
+                sample_ok = df.filter(pl.col("años_contrato").is_not_null()).select(["contract_details", "años_contrato"]).head(3).to_dicts()
+                sample_null = df.filter(pl.col("años_contrato").is_null()).select(["contract_details", "años_contrato"]).head(3).to_dicts()
+                print(f"[A1][Contrato][DEBUG] contrato_max={contrato_max}")
+                print(f"[A1][Contrato][DEBUG] sample parsed contract_details/años_contrato (not null): {sample_ok}")
+                print(f"[A1][Contrato][DEBUG] sample unparsed contract_details/años_contrato (null): {sample_null}")
+            antes = df.height
+            df = df.filter(pl.col("años_contrato").is_not_null() & (pl.col("años_contrato") < contrato_max))
             if self.DEBUG: print(f"[A1][Contrato] < {contrato_max}: {antes} -> {df.height}")
 
 
@@ -992,7 +1009,6 @@ class Agente1HardFilter:
         nacionalidades_canon = self.extraer_nacionalidades(query)
         if self.DEBUG: print(f"[A1][Nacionalidad] detectadas={nacionalidades_canon}")
         if nacionalidades_canon and "nacionalidad" in df.columns:
-            # normalizamos columna 'nacionalidad'
             df = df.with_columns(
                 pl.col("nacionalidad")
                 .cast(pl.Utf8, strict=False)
@@ -1000,13 +1016,15 @@ class Agente1HardFilter:
                 .alias("nacionalidad_norm")
             )
 
-            # normalizamos también las nacionalidades detectadas
             nacionalidades_norm = set(_norm_text(n) for n in nacionalidades_canon)
+            if self.DEBUG: print(f"[A1][Nacionalidad] búsqueda normalizadas={nacionalidades_norm}")
 
             antes = df.height
-            df = df.filter(pl.col("nacionalidad_norm").is_in(nacionalidades_norm))
+            df = df.filter(
+                (pl.col("nacionalidad_norm").is_in(nacionalidades_norm)) &
+                (pl.col("nacionalidad_norm") != "")
+            )
             if self.DEBUG: print(f"[A1][Nacionalidad] filtro: {antes} -> {df.height}")
-
 
 
         # ---- Liga explícita ----

@@ -23,12 +23,13 @@ services:
       - GROQ_API_KEY=${GROQ_API_KEY}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - OPENAI_MODEL_SUPERVISOR=${OPENAI_MODEL_SUPERVISOR:-gpt-4o-mini}
-      - INDICES_DIR=/data/processed/indices/current
+      - INDICES_DIR=/data_local/processed/indices/current
       - TRANSFORMERS_CACHE=/models_cache
       - HF_HOME=/models_cache
       - KAL_CHROME_PATH=/usr/bin/google-chrome-stable
     volumes:
       - ./data:/data
+      - ./data_local:/data_local
       - ./src:/app/src:ro     
       - models_cache:/models_cache
     command: ["scouting-bot"]

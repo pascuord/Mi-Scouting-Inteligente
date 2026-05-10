@@ -37,6 +37,7 @@ ALIAS_TO_NACIONALIDAD = {
   "canada": "Canadá",
   "chad": "Chad",
   "chequia": "Chequia",
+  "checo": "Chequia",
   "chile": "Chile",
   "china": "China",
   "chipre": "Chipre",
@@ -402,7 +403,67 @@ def _norm_text(s: str) -> str:
 
 
 class Agente1HardFilter:
-    DEBUG =True  # ponlo a False en producción
+    DEBUG = True  # ponlo a False en producción
+
+    def __init__(self, llm=None):
+        self.llm = llm
+        # Mapeo de posiciones en español a inglés (estándar del dataframe)
+        self.posiciones_es_to_en = {
+            "defensa central": "centre-back",
+            "central": "centre-back",
+            "zaguero": "centre-back",
+            "stoper": "centre-back",
+            "stopper": "centre-back",
+            "libero": "centre-back",
+            "defensor central": "centre-back",
+            "lateral izquierdo": "left-back",
+            "carrilero izquierdo": "left midfield",
+            "defensa izquierdo": "left-back",
+            "wing-back izquierdo": "left-back",
+            "lateral derecho": "right-back",
+            "carrilero derecho": "right midfield",
+            "defensa derecho": "right-back",
+            "wing-back derecho": "right-back",
+            "lateral": "full-back",
+            "carrilero": "left midfield",
+            "wing-back": "full-back",
+            "pivote": "defensive midfield",
+            "mediocentro defensivo": "defensive midfield",
+            "centrocampista defensivo": "defensive midfield",
+            "mediocampista defensivo": "defensive midfield",
+            "volante de contencion": "defensive midfield",
+            "volante de contención": "defensive midfield",
+            "cinco": "defensive midfield",
+            "mediocentro": "central midfield",
+            "centrocampista": "central midfield",
+            "mediocampista": "central midfield",
+            "interior": "central midfield",
+            "medio": "central midfield",
+            "mediapunta": "attacking midfield",
+            "enganche": "attacking midfield",
+            "trequartista": "attacking midfield",
+            "diez": "attacking midfield",
+            "centrocampista ofensivo": "attacking midfield",
+            "mediocampista ofensivo": "attacking midfield",
+            "extremo izquierdo": "left winger",
+            "ala izquierda": "left winger",
+            "extremo derecho": "right winger",
+            "ala derecha": "right winger",
+            "extremo": "winger",
+            "banda": "winger",
+            "segundo delantero": "second striker",
+            "delantero centro": "centre-forward",
+            "nueve": "centre-forward",
+            "9": "centre-forward",
+            "centrodelantero": "centre-forward",
+            "delantero": "forward",
+            "atacante": "forward",
+            "ariete": "forward",
+            "portero": "goalkeeper",
+            "arquero": "goalkeeper",
+            "guardameta": "goalkeeper",
+            "keeper": "goalkeeper"
+        }
 
     # --- Normalización países / gentilicios / ligas ---
 
@@ -671,14 +732,23 @@ class Agente1HardFilter:
 
     def extraer_contrato_max(self, query: str) -> float | None:
         q = self._norm(query)
-        m = re.search(r"(?:menos|menor|inferior)\s*de\s*(\d+(?:\.\d+)?)\s*anos", q)
-        if m:
-            try: return float(m.group(1))
-            except: pass
+
+        # Patrones explícitos con "último año" o "último año de contrato"
+        if re.search(r"(?:ultim|últim)o\s+a(?:n|ñ)o(?:s)?(?:\s+de\s+contrato)?", q):
+            return 1.0
+
+        # Solo interpretamos "menos de X años" como contrato si hay contexto claro de contrato.
+        if any(w in q for w in ["contrato", "contract", "quede", "queden", "de contrato", "año de contrato", "años de contrato"]):
+            m = re.search(r"(?:menos|menor|inferior)\s*de\s*(\d+(?:\.\d+)?)\s*a(?:n|ñ)os", q)
+            if m:
+                try: return float(m.group(1))
+                except: pass
+
         # patrón: "le quedan menos de dos años", "menos de 2 años de contrato"
         for m in re.finditer(r"(?:menos\s+de\s+)(\d+)\s+a(?:n|ñ)os", q):
-            max_anios = int(m.group(1))
-            return max_anios
+            if any(w in q for w in ["contrato", "quede", "queden", "de contrato"]):
+                max_anios = int(m.group(1))
+                return max_anios
         
         for m in re.finditer(r"(?:qu(?:e|é)\s+(?:le\s+)?quede[n]?\s+(?:menos\s+de\s+)?)(\d+)\s+a(?:n|ñ)os(?:\s+de\s+contrato)?", q):
             max_anios = int(m.group(1))
@@ -692,16 +762,10 @@ class Agente1HardFilter:
 
         # en el parser
         for word, val in NUMERAL_MAP.items():
-            if f"menos de {word} año" in query or f"menos de {word} años" in query:
+            if re.search(rf"menos\s+de\s+{word}\s+a(?:n|ñ)os(?:\s+de\s+contrato)?", q) and any(w in q for w in ["contrato", "quede", "queden", "de contrato"]):
                 return val
-            
-        # Detectar "que le queden menos de dos años de contrato"
-        for word, val in NUMERAL_MAP.items():
-            patron = rf"(?:qu(?:e|é)\s+(?:le\s+)?quede[n]?\s+menos\s+de\s+{word}\s+a(?:n|ñ)os(?:\s+de\s+contrato)?)"
-            if re.search(patron, q):
+            if re.search(rf"qu(?:e|é)\s+(?:le\s+)?quede[n]?\s+menos\s+de\s+{word}\s+a(?:n|ñ)os(?:\s+de\s+contrato)?", q):
                 return val
-
-
 
         return None
     
@@ -790,10 +854,99 @@ class Agente1HardFilter:
         return list(targets)
 
 
+    def extraer_criterios_llm(self, query: str) -> dict:
+        """
+        Usa el LLM para extraer criterios de filtrado de la query.
+        Devuelve un dict con claves: edad_min, edad_max, valor_max_euros, posiciones, nacionalidad, pie_dominante, altura_min_cm, altura_max_cm, contrato_max_anios, etc.
+        """
+        if not self.llm:
+            return {}  # fallback vacío si no hay LLM
+
+        prompt = f"""
+Eres un extractor de criterios para scouting de fútbol.
+Dada una query en español, extrae SOLO JSON válido con claves para filtros duros.
+Claves posibles: edad_min (int o null), edad_max (int o null), valor_max_euros (float o null), posiciones (lista de str en INGLÉS o null), nacionalidad (str o null), pie_dominante (str: 'left'/'right' o null), altura_min_cm (int o null), altura_max_cm (int o null), contrato_max_anios (float o null).
+REGLAS:
+- Solo extrae si es relevante para scouting (edad, valor, posición, nacionalidad, pie, altura, contrato).
+- Normaliza posiciones a INGLÉS estándar (valores posibles: 'centre-back', 'left-back', 'right-back', 'full-back', 'left midfield', 'right midfield', 'defensive midfield', 'central midfield', 'attacking midfield', 'left winger', 'right winger', 'winger', 'second striker', 'centre-forward', 'forward', 'goalkeeper').
+- Para valores, incluye unidad implícita (e.g., 'millones' -> multiplica por 1e6).
+- Nacionalidad como país canónico (e.g., 'inglés' -> 'Inglaterra').
+- Si no hay criterio, pon null.
+- Sé conservador: no inventes criterios no mencionados.
+
+EJEMPLOS:
+- "Extremo izquierdo menor de 25 años con valor menor de 10 millones" -> {{"edad_max": 25, "valor_max_euros": 10000000.0, "posiciones": ["left winger"], "edad_min": null, "nacionalidad": null, "pie_dominante": null, "altura_min_cm": null, "altura_max_cm": null, "contrato_max_anios": null}}
+- "Portero barato zurdo de España" -> {{"valor_max_euros": 1000000.0, "posiciones": ["goalkeeper"], "nacionalidad": "España", "pie_dominante": "left", "edad_min": null, "edad_max": null, "altura_min_cm": null, "altura_max_cm": null, "contrato_max_anios": null}}
+
+Query: {query}
+Responde SOLO JSON.
+"""
+
+        try:
+            raw = self.llm.invoke(prompt).content.strip()
+            if raw.startswith("```json"):
+                raw = raw.replace("```json", "", 1)
+            if raw.endswith("```"):
+                raw = raw[::-1].replace("```", "", 1)[::-1]
+            raw = raw.strip()
+            data = json.loads(raw)
+            return data
+        except Exception as e:
+            if self.DEBUG:
+                print(f"[A1][LLM] Error extrayendo criterios: {e}")
+            return {}
+
+    def normalizar_posiciones(self, posiciones: list[str]) -> list[str]:
+        """
+        Normaliza posiciones (de español a inglés si es necesario, y a lowercase).
+        Usa el mapeo interno de posiciones_es_to_en.
+        """
+        normalized = []
+        for pos in (posiciones or []):
+            pos_lower = pos.lower().strip()
+            # Primero intenta normalizar usando el mapeo español->inglés
+            if pos_lower in self.posiciones_es_to_en:
+                normalized.append(self.posiciones_es_to_en[pos_lower])
+            else:
+                # Si no está en el mapeo, asume que ya está en inglés y lo usa directamente
+                normalized.append(pos_lower)
+        # Deduplica manteniendo orden
+        return list(dict.fromkeys(normalized))
+
     def filtrar(self, df_pre_filtrado: pl.DataFrame, query: str, tipo: Literal["jugador","portero"]) -> Tuple[pl.DataFrame, str]:
         q = self._norm(query)
         df = df_pre_filtrado
         if self.DEBUG: print(f"[A1] query='{query}' rows_iniciales={df.height}")
+        
+        # Extraer criterios con LLM
+        criterios_llm = self.extraer_criterios_llm(query)
+        if self.DEBUG: print(f"[A1][LLM] criterios extraídos: {criterios_llm}")
+        
+        # Fallback a métodos regex si LLM falla o está vacío
+        if not criterios_llm:
+            criterios_llm = {
+                "edad_min": None,
+                "edad_max": None,
+                "valor_max_euros": None,
+                "posiciones": [],
+                "nacionalidad": None,
+                "pie_dominante": None,
+                "altura_min_cm": None,
+                "altura_max_cm": None,
+                "contrato_max_anios": None,
+            }
+            # Usar métodos actuales como fallback
+            criterios_llm["edad_min"], criterios_llm["edad_max"] = self.extraer_edades(q)
+            criterios_llm["valor_max_euros"] = self.extraer_valor_maximo(query)
+            criterios_llm["posiciones"] = self.extraer_posiciones(q)
+            criterios_llm["pie_dominante"] = self.extraer_pie(q)
+            criterios_llm["altura_min_cm"], criterios_llm["altura_max_cm"] = self.extraer_altura(q)
+            criterios_llm["contrato_max_anios"] = self.extraer_contrato_max(q)
+            # Nacionalidad y liga no están en LLM aún, pero podemos agregar
+            nacionalidades = self.extraer_nacionalidades(q)
+            if nacionalidades:
+                criterios_llm["nacionalidad"] = nacionalidades[0]  # tomar primera
+            if self.DEBUG: print(f"[A1][Fallback] usando métodos regex: {criterios_llm}")
         
         # ---- VER ESQUEMA REAL RECIBIDO ----
         if self.DEBUG:
@@ -898,7 +1051,7 @@ class Agente1HardFilter:
             )
 
 
-        edad_min, edad_max = self.extraer_edades(q)
+        edad_min, edad_max = criterios_llm.get("edad_min"), criterios_llm.get("edad_max")
         if self.DEBUG: print(f"[A1][Edad] min={edad_min} max={edad_max}")
         if "age" in df.columns:
             if edad_max is not None:
@@ -909,7 +1062,7 @@ class Agente1HardFilter:
                 antes = df.height; df = df.filter(pl.col("age") >= edad_min)
                 if self.DEBUG: print(f"[A1][Edad] >= {edad_min}: {antes} -> {df.height}")
 
-        valor_max = self.extraer_valor_maximo(query)
+        valor_max = criterios_llm.get("valor_max_euros")
         if self.DEBUG: print(f"[A1][Valor] max_detectado={valor_max}")
         if valor_max is not None:
             if "market_value_num" not in df.columns and "market_value" in df.columns:
@@ -922,7 +1075,9 @@ class Agente1HardFilter:
                 if self.DEBUG: print(f"[A1][Valor] <= {valor_max}: {antes} -> {df.height}")
 
 
-        posiciones_norm = self.extraer_posiciones(q)
+        posiciones_norm = criterios_llm.get("posiciones", [])
+        # Normalizar posiciones (español -> inglés si es necesario)
+        posiciones_norm = self.normalizar_posiciones(posiciones_norm)
         if self.DEBUG: print(f"[A1][Posicion] detectadas={posiciones_norm}")
         if posiciones_norm and "main_position" in df.columns:
             df = df.with_columns([
@@ -941,7 +1096,7 @@ class Agente1HardFilter:
             )
             if self.DEBUG: print(f"[A1][Posicion] filtro: {antes} -> {df.height}")
 
-        pie = self.extraer_pie(q)
+        pie = criterios_llm.get("pie_dominante")
         if self.DEBUG: print(f"[A1][Pie] detectado={pie}")
         if pie and "foot" in df.columns:
             if pie == "left":
@@ -951,7 +1106,35 @@ class Agente1HardFilter:
                 antes = df.height; df = df.filter(pl.col("foot").str.to_lowercase().is_in(["right","both"]))
                 if self.DEBUG: print(f"[A1][Pie] right/both: {antes} -> {df.height}")
 
-        hmin, hmax = self.extraer_altura(q)
+        # Filtro por nacionalidad
+        nacionalidad = criterios_llm.get("nacionalidad")
+        if self.DEBUG: print(f"[A1][Nacionalidad] detectada={nacionalidad}")
+        if nacionalidad:
+            nacionalidad_norm = _norm_text(nacionalidad)
+            if "nacionalidad" in df.columns:
+                df = df.with_columns(
+                    pl.col("nacionalidad")
+                    .cast(pl.Utf8, strict=False)
+                    .map_elements(_norm_text, return_dtype=pl.Utf8)
+                    .alias("nacionalidad_norm")
+                )
+                antes = df.height
+                df = df.filter(pl.col("nacionalidad_norm") == nacionalidad_norm)
+                if self.DEBUG: print(f"[A1][Nacionalidad] == {nacionalidad} (nacionalidad): {antes} -> {df.height}")
+            elif "pais" in df.columns:
+                df = df.with_columns(
+                    pl.col("pais")
+                    .cast(pl.Utf8, strict=False)
+                    .map_elements(_norm_text, return_dtype=pl.Utf8)
+                    .alias("pais_norm")
+                )
+                antes = df.height
+                df = df.filter(pl.col("pais_norm") == nacionalidad_norm)
+                if self.DEBUG: print(f"[A1][Nacionalidad] == {nacionalidad} (pais fallback): {antes} -> {df.height}")
+
+        hmin, hmax = criterios_llm.get("altura_min_cm"), criterios_llm.get("altura_max_cm")
+        if hmin: hmin /= 100.0  # convertir cm a m
+        if hmax: hmax /= 100.0
         if self.DEBUG: print(f"[A1][Altura] min={hmin} max={hmax}")
         if (hmin is not None or hmax is not None) and "height" in df.columns:
             if "height_num" not in df.columns:
@@ -969,22 +1152,36 @@ class Agente1HardFilter:
                 antes = df.height; df = df.filter(pl.col("height_num") <= hmax)
                 if self.DEBUG: print(f"[A1][Altura] <= {hmax}: {antes} -> {df.height}")
 
-        contrato_max = self.extraer_contrato_max(q)
+        contrato_max = criterios_llm.get("contrato_max_anios")
         if self.DEBUG: print(f"[A1][Contrato] max_detectado={contrato_max}")
         if "contract_details" in df.columns and "años_contrato" not in df.columns:
             hoy = datetime.date.today()
             def years_left(contract_json: Any) -> float | None:
                 try:
                     d = json.loads(contract_json) if isinstance(contract_json, str) else (contract_json or {})
-                    fecha = d.get("contract_expires")
-                    if not fecha: return None
-                    dt = datetime.datetime.strptime(fecha, "%b %d, %Y").date()
-                    return (dt - hoy).days / 365.0
+                    fecha = d.get("contract_expires") or d.get("expires") or d.get("contract_end")
+                    if not fecha:
+                        return None
+                    fecha = str(fecha).strip()
+                    for fmt in ["%b %d, %Y", "%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d", "%d %B %Y", "%Y/%m/%d", "%d.%m.%Y"]:
+                        try:
+                            dt = datetime.datetime.strptime(fecha, fmt).date()
+                            return (dt - hoy).days / 365.0
+                        except Exception:
+                            continue
+                    return None
                 except Exception:
                     return None
             df = df.with_columns(pl.col("contract_details").map_elements(years_left, return_dtype=pl.Float64).alias("años_contrato"))
         if contrato_max is not None and "años_contrato" in df.columns:
-            antes = df.height; df = df.filter(pl.col("años_contrato") < contrato_max)
+            if self.DEBUG:
+                sample_ok = df.filter(pl.col("años_contrato").is_not_null()).select(["contract_details", "años_contrato"]).head(3).to_dicts()
+                sample_null = df.filter(pl.col("años_contrato").is_null()).select(["contract_details", "años_contrato"]).head(3).to_dicts()
+                print(f"[A1][Contrato][DEBUG] contrato_max={contrato_max}")
+                print(f"[A1][Contrato][DEBUG] sample parsed contract_details/años_contrato (not null): {sample_ok}")
+                print(f"[A1][Contrato][DEBUG] sample unparsed contract_details/años_contrato (null): {sample_null}")
+            antes = df.height
+            df = df.filter(pl.col("años_contrato").is_not_null() & (pl.col("años_contrato") < contrato_max))
             if self.DEBUG: print(f"[A1][Contrato] < {contrato_max}: {antes} -> {df.height}")
 
 
@@ -992,7 +1189,6 @@ class Agente1HardFilter:
         nacionalidades_canon = self.extraer_nacionalidades(query)
         if self.DEBUG: print(f"[A1][Nacionalidad] detectadas={nacionalidades_canon}")
         if nacionalidades_canon and "nacionalidad" in df.columns:
-            # normalizamos columna 'nacionalidad'
             df = df.with_columns(
                 pl.col("nacionalidad")
                 .cast(pl.Utf8, strict=False)
@@ -1000,13 +1196,15 @@ class Agente1HardFilter:
                 .alias("nacionalidad_norm")
             )
 
-            # normalizamos también las nacionalidades detectadas
             nacionalidades_norm = set(_norm_text(n) for n in nacionalidades_canon)
+            if self.DEBUG: print(f"[A1][Nacionalidad] búsqueda normalizadas={nacionalidades_norm}")
 
             antes = df.height
-            df = df.filter(pl.col("nacionalidad_norm").is_in(nacionalidades_norm))
+            df = df.filter(
+                (pl.col("nacionalidad_norm").is_in(nacionalidades_norm)) &
+                (pl.col("nacionalidad_norm") != "")
+            )
             if self.DEBUG: print(f"[A1][Nacionalidad] filtro: {antes} -> {df.height}")
-
 
 
         # ---- Liga explícita ----

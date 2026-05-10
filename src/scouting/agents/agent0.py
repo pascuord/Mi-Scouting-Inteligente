@@ -68,12 +68,12 @@ def _normalize_for_polars(doc: Dict[str, Any]) -> Dict[str, Any]:
 
 
 class Agente0VectorRetriever:
-    def __init__(self, top_k: int = 3500):
+    def __init__(self, top_k: int = 5000):
         self.top_k = top_k
         self.encoder = encoder
 
         # Base de índices: desde env o por defecto
-        self.base = os.getenv("INDICES_DIR", "/data/processed/indices")
+        self.base = os.getenv("INDICES_DIR", "/data_local/processed/indices")
 
         self.indices = {
             "jugador": {

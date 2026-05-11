@@ -285,6 +285,28 @@ FORCE_GK = {
     "porterias a cero":["Clean sheets"],
 }
 
+CONCEPT_TO_STATS = {
+    _norm("buen pie"): {"Pass accuracy": 1.0, "Accurate passes": 0.95, "xA": 0.75, "Accurate long balls": 0.6},
+    _norm("juego asociativo"): {"Chances created": 1.0, "xA": 0.9, "Pass accuracy": 0.75, "Touches": 0.5},
+    _norm("pase seguro"): {"Pass accuracy": 1.0, "Dispossessed": 0.9, "Accurate passes": 0.8},
+    _norm("pase en corto"): {"Pass accuracy": 1.0, "Accurate passes": 0.9, "Touches": 0.5},
+    _norm("pase entre lineas"): {"Chances created": 1.0, "xA": 0.85, "Accurate passes": 0.7},
+    _norm("pase largo"): {"Accurate long balls": 1.0, "Long ball accuracy": 0.9, "Accurate passes": 0.6},
+    _norm("buen remate"): {"Shots on target": 1.0, "xGOT": 0.9, "xG": 0.8},
+    _norm("rematador"): {"Shots on target": 1.0, "xG": 0.9, "xGOT": 0.85, "Shots": 0.6},
+    _norm("buen regate"): {"Dribbles": 1.0, "Dribbles success rate": 0.9, "Successful crosses": 0.5},
+    _norm("desborde"): {"Dribbles": 1.0, "Dribbles success rate": 0.9, "Successful crosses": 0.65},
+    _norm("presion alta"): {"Recoveries": 1.0, "Possession won final 3rd": 0.9, "Interceptions": 0.7},
+    _norm("juego sucio"): {"Tackles won": 1.0, "Interceptions": 0.8, "Recoveries": 0.7},
+}
+
+METRIC_FAMILY_TO_STATS = {
+    "Passing": {"Pass accuracy": 1.0, "Accurate passes": 0.95, "xA": 0.85, "Accurate long balls": 0.7},
+    "Creativity": {"Chances created": 1.0, "xA": 0.9, "Touches": 0.5},
+    "Shooting": {"Shots on target": 1.0, "xG": 0.9, "xGOT": 0.85, "Shots": 0.6},
+    "Possession": {"Pass accuracy": 0.9, "Dispossessed": 0.85, "Touches": 0.6, "Touches in opposition box": 0.5},
+}
+
 STAT_BLOCKS = {
     "Shooting": {"Goals", "xG", "xGOT", "Shots", "Shots on target", "Penalty goals", "Non-penalty xG"},
     "Passing": {"Assists", "xA", "Accurate passes", "Pass accuracy", "Accurate long balls", "Long ball accuracy", "Chances created", "Successful crosses", "Cross accuracy"},
@@ -438,8 +460,11 @@ MINUTES_FILTER_DEFAULT_GK = 0
 MINUTES_PREFER_PER90_THRESHOLD = 300        #Este lo tenemos que ir revisando continuamente. igual mediados de enero 450, finales de febrero 600, inicios abril 750, finales mayo 1000
 
 class ScoreEvaluatorAgent:
-    def __init__(self):
+    def __init__(self, llm=None):
         self.encoder = encoder
+        self.llm = llm
+        self.DEBUG = False
+
         self.stat_names_j = list(STAT_DESCRIPTIONS_JUGADORES.keys())
         self.stat_texts_j = [STAT_DESCRIPTIONS_JUGADORES[k] for k in self.stat_names_j]
         self.emb_stats_j = self.encoder.encode(self.stat_texts_j, convert_to_tensor=True)
@@ -541,6 +566,101 @@ class ScoreEvaluatorAgent:
         sims = np.clip(sims, 0, None); sims = sims / sims.sum() if sims.sum() > 0 else np.ones_like(sims)/len(sims)
         return {names[i]: float(sims[i]) for i in range(len(names))}
 
+    def _parse_llm_json(self, raw: str) -> Any:
+        raw = raw.strip()
+        if raw.startswith("```"):
+            raw = raw.replace("```json", "", 1).replace("```", "").strip()
+        start = raw.find("{")
+        end = raw.rfind("}")
+        if start >= 0 and end >= 0 and end > start:
+            raw = raw[start:end+1]
+        return json.loads(raw)
+
+    def extract_football_concepts_llm(self, query: str) -> Dict[str, Any]:
+        if not self.llm:
+            return {"concepts": [], "metric_families": []}
+
+        prompt = f"""
+Eres un extractor de conceptos futbolísticos para scouting.
+Dada una consulta en español, devuelve SOLO JSON válido con estas claves:
+- concepts: lista de conceptos o descriptores de fútbol (por ejemplo, "buen pie", "juego asociativo", "pase seguro").
+- metric_families: lista de familias de métricas relevantes (por ejemplo, "Passing", "Shooting", "Possession").
+
+NO incluyas información sobre posición ni filtros duros como edad o liga.
+NO devuelvas texto adicional fuera del JSON.
+
+Ejemplo:
+{"concepts": ["buen pie", "juego asociativo"], "metric_families": ["Passing", "Creativity"]}
+
+Query: {query}
+"""
+
+        try:
+            raw = self.llm.invoke(prompt).content.strip()
+            data = self._parse_llm_json(raw)
+            return {
+                "concepts": data.get("concepts") if isinstance(data.get("concepts"), list) else [],
+                "metric_families": data.get("metric_families") if isinstance(data.get("metric_families"), list) else [],
+            }
+        except Exception as e:
+            if getattr(self, "DEBUG", False):
+                print(f"[A2][LLM] Error extrayendo conceptos futbolísticos: {e}")
+            return {"concepts": [], "metric_families": []}
+
+    def _find_concepts_fallback(self, query: str) -> List[str]:
+        q = _norm(query)
+        found: List[str] = []
+        for concept in CONCEPT_TO_STATS.keys():
+            if concept in q and concept not in found:
+                found.append(concept)
+
+        for alias, intent in INTENT_ALIASES.items():
+            if alias in q and alias not in found:
+                found.append(alias)
+
+        return found
+
+    def _concepts_to_metrics(self, concepts: List[str], metric_families: List[str]) -> Dict[str, float]:
+        weights: Dict[str, float] = {}
+        for concept in concepts:
+            canon = _norm(concept)
+            if canon in CONCEPT_TO_STATS:
+                for stat, w in CONCEPT_TO_STATS[canon].items():
+                    weights[stat] = weights.get(stat, 0.0) + w
+            elif canon in INTENT_ALIASES:
+                intent = INTENT_ALIASES[canon]
+                for stat, w in INTENT_TO_STATS_JUG.get(intent, {}).items():
+                    weights[stat] = weights.get(stat, 0.0) + w * 0.9
+
+        for family in metric_families:
+            if family in METRIC_FAMILY_TO_STATS:
+                for stat, w in METRIC_FAMILY_TO_STATS[family].items():
+                    weights[stat] = weights.get(stat, 0.0) + (w * 0.35)
+
+        if not weights and concepts:
+            for concept in concepts:
+                canon = _norm(concept)
+                if canon in INTENT_ALIASES:
+                    intent = INTENT_ALIASES[canon]
+                    for stat, w in INTENT_TO_STATS_JUG.get(intent, {}).items():
+                        weights[stat] = weights.get(stat, 0.0) + w
+
+        total = sum(weights.values())
+        return {k: v / total for k, v in weights.items()} if total > 0 else {}
+
+    def _weights_via_llm(self, query: str, tipo: Literal["jugador","portero"]) -> Dict[str, float]:
+        if tipo != "jugador":
+            return {}
+
+        extracted = self.extract_football_concepts_llm(query)
+        concepts = extracted.get("concepts", [])
+        families = extracted.get("metric_families", [])
+
+        if not concepts:
+            concepts = self._find_concepts_fallback(query)
+
+        return self._concepts_to_metrics(concepts, families)
+
     def _forced_stats_from_query(self, query: str, tipo: Literal["jugador","portero"]) -> List[str]:
         query_lower = _norm(query)
         forced = set()
@@ -599,9 +719,11 @@ class ScoreEvaluatorAgent:
     def _select_top_k_metrics_global(self, query: str, tipo: Literal["jugador","portero"], top_k: int = 8) -> Dict[str, float]:
         w_int = self._weights_via_intents(query, tipo)
         w_emb = self._weights_via_embeddings(query, tipo)
-        alpha = 0.7
-        all_keys = set(w_int) | set(w_emb)
-        merged = {k: alpha*w_int.get(k, 0.0) + (1 - alpha)*w_emb.get(k, 0.0) for k in all_keys}
+        w_llm = self._weights_via_llm(query, tipo)
+
+        alpha, beta, gamma = 0.5, 0.25, 0.25
+        all_keys = set(w_int) | set(w_emb) | set(w_llm)
+        merged = {k: alpha*w_int.get(k, 0.0) + beta*w_emb.get(k, 0.0) + gamma*w_llm.get(k, 0.0) for k in all_keys}
         canonical = _canonicalize_stats(merged)
 
         forced = self._forced_stats_from_query(query, tipo)

@@ -332,14 +332,17 @@ LEAGUE_SYNONYMS = {
     "allsvenskan": "Allsvenskan", "liga sueca": "Allsvenskan",
 
     # Suiza
-    "super league suiza": "Super League (Suiza)", "liga suiza": "Super League (Suiza)",
+    "super league suiza": "Super League (Suiza)", "swiss super league": "Super League (Suiza)", "liga suiza": "Super League (Suiza)",
     "challenge league suiza": "Challenge League (Suiza)",
 
     # Thailandia
     "thai league": "Thai League", "liga tailandesa": "Thai League",
 
     # Turquia
-    "super lig": "Super Lig (Turquía)", "liga turca": "Super Lig (Turquía)",
+    "super lig": "Super Lig (Turquía)", "sueper lig": "Super Lig (Turquía)", "süper lig": "Super Lig (Turquía)", "liga turca": "Super Lig (Turquía)",
+
+    # Escocia
+    "scottish premiership": "Premiership (Escocia)", "premiership escocia": "Premiership (Escocia)", "liga escocesa": "Premiership (Escocia)",
 }
 
 # Mapa liga -> país canon
@@ -398,6 +401,11 @@ def _norm_text(s: str) -> str:
     t = unicodedata.normalize("NFD", (s or "").lower())
     return "".join(ch for ch in t if unicodedata.category(ch) != "Mn")
 
+
+def _normalize_league_name(name: str) -> str | None:
+    if not isinstance(name, str):
+        return None
+    return LEAGUE_SYNONYMS.get(_norm_text(name))
 
 
 
@@ -797,10 +805,14 @@ class Agente1HardFilter:
         for i, token in enumerate(tokens):
             canon = _canon_country_token(token)
             if canon:
-                # Omite país si aparece en contexto de liga/ubicación (ej. "en <país>" o "liga <país>"):
+                # Omite país si aparece en contexto de liga/ubicación (ej. "en <país>", "juegue en <país>", "liga <país>"):
                 if i > 0 and tokens[i-1] in {"en", "jugando", "juegue"}:
                     continue
+                if i > 0 and tokens[i-1] == "liga":
+                    continue
                 if i > 1 and tokens[i-2] == "liga":
+                    continue
+                if re.search(rf"\b(?:la\s+)?liga\s+{re.escape(token)}\b", q):
                     continue
                 targets.add(canon)
 
@@ -865,18 +877,24 @@ class Agente1HardFilter:
         prompt = f"""
 Eres un extractor de criterios para scouting de fútbol.
 Dada una query en español, extrae SOLO JSON válido con claves para filtros duros.
-Claves posibles: edad_min (int o null), edad_max (int o null), valor_max_euros (float o null), posiciones (lista de str en INGLÉS o null), nacionalidad (str o null), pie_dominante (str: 'left'/'right' o null), altura_min_cm (int o null), altura_max_cm (int o null), contrato_max_anios (float o null).
+Claves posibles: edad_min (int o null), edad_max (int o null), valor_max_euros (float o null), posiciones (lista de str en INGLÉS o null), nacionalidad (str o null), pie_dominante (str: 'left'/'right' o null), altura_min_cm (int o null), altura_max_cm (int o null), contrato_max_anios (float o null), ligas (lista de str o null).
 REGLAS:
-- Solo extrae si es relevante para scouting (edad, valor, posición, nacionalidad, pie, altura, contrato).
+- Solo extrae si es relevante para scouting (edad, valor, posición, nacionalidad, pie, altura, contrato, liga).
 - Normaliza posiciones a INGLÉS estándar (valores posibles: 'centre-back', 'left-back', 'right-back', 'full-back', 'left midfield', 'right midfield', 'defensive midfield', 'central midfield', 'attacking midfield', 'left winger', 'right winger', 'winger', 'second striker', 'centre-forward', 'forward', 'goalkeeper').
 - Para valores, incluye unidad implícita (e.g., 'millones' -> multiplica por 1e6).
 - Nacionalidad como país canónico (e.g., 'inglés' -> 'Inglaterra').
+- No extraigas nacionalidad cuando la query mencione un país como parte de una liga, por ejemplo 'liga suiza', 'liga turca' o 'liga escocesa'.
+- Ligas solo de la lista permitida. Usa exclusivamente estos nombres canónicos cuando la query mencione ligas:
+  ["2. Bundesliga", "3. Liga", "A-League", "Allsvenskan", "Besta deildin", "Bundesliga", "Bundesliga (Austria)", "Championship", "Championship (Escocia)", "Eerste Divisie", "Ekstraklasa", "Eliteserien", "Eredivisie", "First Division A", "HNL (Croacia)", "Indian Super League", "J. League (Japón)", "K League 1(Corea del Sur)", "K League 2 (Corea del Sur)", "LaLiga", "LaLiga2", "League One", "League Two", "Liga MX (Mexico)", "Liga Portugal", "Liga Profesional", "Ligue 1", "Ligue 2", "MLS", "Premier Division (Irlanda)", "Premier League", "Premier League (Canada)", "Premier League (Egipto)", "Premier League (Rusia)", "Premiership (Escocia)", "Primera A (Colombia)", "Primera Division (Chile)", "Saudi Pro League", "Serie A", "Serie A (Brasil)", "Serie B", "Serie B (Brasil)", "Super League (China)", "Super League (Suiza)", "Super League 1 (Grecia)", "Super Lig (Turquía)", "Thai League", "USL Championship", "Veikkausliiga"].
+- Si la query menciona "las 5 grandes ligas", devuelve las 5 de siempre: ["LaLiga", "Premier League", "Serie A", "Bundesliga", "Ligue 1"].
+- Si se menciona una liga fuera de esta lista, ignórala y pon null en "ligas".
 - Si no hay criterio, pon null.
 - Sé conservador: no inventes criterios no mencionados.
 
 EJEMPLOS:
-- "Extremo izquierdo menor de 25 años con valor menor de 10 millones" -> {{"edad_max": 25, "valor_max_euros": 10000000.0, "posiciones": ["left winger"], "edad_min": null, "nacionalidad": null, "pie_dominante": null, "altura_min_cm": null, "altura_max_cm": null, "contrato_max_anios": null}}
-- "Portero barato zurdo de España" -> {{"valor_max_euros": 1000000.0, "posiciones": ["goalkeeper"], "nacionalidad": "España", "pie_dominante": "left", "edad_min": null, "edad_max": null, "altura_min_cm": null, "altura_max_cm": null, "contrato_max_anios": null}}
+- "Extremo izquierdo menor de 25 años con valor menor de 10 millones" -> {{"edad_max": 25, "valor_max_euros": 10000000.0, "posiciones": ["left winger"], "edad_min": null, "nacionalidad": null, "pie_dominante": null, "altura_min_cm": null, "altura_max_cm": null, "contrato_max_anios": null, "ligas": null}}
+- "Portero barato zurdo de España" -> {{"valor_max_euros": 1000000.0, "posiciones": ["goalkeeper"], "nacionalidad": "España", "pie_dominante": "left", "edad_min": null, "edad_max": null, "altura_min_cm": null, "altura_max_cm": null, "contrato_max_anios": null, "ligas": null}}
+- "Jugadores de las 5 grandes ligas menores de 25 años" -> {{"edad_max": 25, "ligas": ["LaLiga", "Premier League", "Serie A", "Bundesliga", "Ligue 1"], "edad_min": null, "valor_max_euros": null, "posiciones": null, "nacionalidad": null, "pie_dominante": null, "altura_min_cm": null, "altura_max_cm": null, "contrato_max_anios": null}}
 
 Query: {query}
 Responde SOLO JSON.
@@ -1208,7 +1226,10 @@ Responde SOLO JSON.
 
 
         # ---- Liga explícita ----
-        ligas = self.extraer_ligas(query)
+        ligas = criterios_llm.get("ligas") or self.extraer_ligas(query)
+        if ligas:
+            normalized_ligas = [l for l in ([_normalize_league_name(l) for l in ligas]) if l]
+            ligas = list(dict.fromkeys(normalized_ligas))
         if self.DEBUG: print(f"[A1][Liga] detectadas={ligas}")
         if ligas and "liga" in df.columns:
             df = df.with_columns(pl.col("liga").cast(pl.Utf8, strict=False).alias("liga"))

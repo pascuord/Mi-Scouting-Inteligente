@@ -33,9 +33,10 @@ LLM_PROVIDER = get_llm_provider()
 SUPERVISOR_MODEL_NAME = get_openai_model_supervisor()
 llm = ChatOpenAI(
     temperature=0,
-    model_name="gpt-5.4-mini",
+    model_name=SUPERVISOR_MODEL_NAME, # <--- Cambiar aquí
     api_key=os.getenv("OPENAI_API_KEY")
 )
+
 
 # DEBUG: Mostrar configuración del LLM
 print("=" * 60)

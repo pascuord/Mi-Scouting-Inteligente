@@ -3,6 +3,10 @@ from dotenv import load_dotenv
 import logging
 from typing import Final
 
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
+
 load_dotenv()  # lee .env si existe
 
 # ---------- logging JSON a stdout ----------
@@ -44,3 +48,19 @@ def get_llm_provider() -> str:
 
 def get_telegram_token() -> str:
     return env_str("TELEGRAM_BOT_TOKEN", "")
+
+def build_global_llm(temperature: float = 0.0) -> BaseChatModel:
+    provider = get_llm_provider()
+    if provider == "openai":
+        return ChatOpenAI(
+            model=get_openai_model_supervisor(),
+            temperature=temperature,
+            api_key=get_openai_key(),
+        )
+    if provider == "groq":
+        return ChatGroq(
+            model_name=env_str("GROQ_MODEL_SUPERVISOR", "llama-3.3-70b-versatile"),
+            temperature=temperature,
+            groq_api_key=os.getenv("GROQ_API_KEY"),
+        )
+    raise ValueError(f"Proveedor LLM no soportado: {provider}")

@@ -20,7 +20,7 @@ from scouting.agents.agent1 import Agente1HardFilter
 from scouting.agents.agent2 import ScoreEvaluatorAgent
 from scouting.agents.agent3 import Agente3Explanation
 from scouting.agents.agent4 import GraphComparisonAgent
-from scouting.agents.common import get_llm_provider, get_openai_key, get_openai_model_supervisor, jlog
+from scouting.agents.common import get_llm_provider, get_openai_key, get_openai_model_supervisor, jlog, build_global_llm
 
 
 # ================== ENV & KALEIDO ==================
@@ -30,18 +30,17 @@ BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 # ================== CONFIGURACIÓN DEL LLM GLOBAL ==================
 # Definimos el LLM aquí arriba para que TODAS las funciones puedan usarlo
 LLM_PROVIDER = get_llm_provider()
-SUPERVISOR_MODEL_NAME = get_openai_model_supervisor()
-llm = ChatOpenAI(
-    temperature=0,
-    model_name=SUPERVISOR_MODEL_NAME, # <--- Cambiar aquí
-    api_key=os.getenv("OPENAI_API_KEY")
-)
+SUPERVISOR_MODEL_NAME = get_openai_model_supervisor() if LLM_PROVIDER == "openai" else os.getenv("GROQ_MODEL_SUPERVISOR", "llama-3.3-70b-versatile")
+llm = build_global_llm(temperature=0)
 
 
 # DEBUG: Mostrar configuración del LLM
 print("=" * 60)
 print("[PIPELINE] LLM Configuration:")
-print(f"  Model: {llm.model_name}")
+if hasattr(llm, "model_name"):
+    print(f"  Model: {llm.model_name}")
+else:
+    print(f"  Model: {SUPERVISOR_MODEL_NAME}")
 print(f"  Provider: {LLM_PROVIDER}")
 print(f"  Temperature: {llm.temperature}")
 print(f"  API Key: {'✓ Configured' if os.getenv('OPENAI_API_KEY') else '✗ NOT CONFIGURED'}")
@@ -148,7 +147,7 @@ def nodo_supervisor(state: PipelineState) -> PipelineState:
     ])
 
     # Trazabilidad de proveedor/modelo para confirmar consistencia de backend en el experimento del TFM.
-    jlog("supervisor_llm_invoke", provider="openai", model=os.getenv("OPENAI_MODEL_SUPERVISOR", "gpt-4o-mini"))
+    jlog("supervisor_llm_invoke", provider=LLM_PROVIDER, model=SUPERVISOR_MODEL_NAME)
     raw = (prompt | llm).invoke({"query": state["query"]}).content.strip()
     
     # Limpieza en caso de que el LLM meta markdown ```json ... ```

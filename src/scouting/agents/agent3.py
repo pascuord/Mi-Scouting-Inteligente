@@ -11,7 +11,7 @@ from langchain_groq import ChatGroq
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.language_models.chat_models import BaseChatModel
-from scouting.agents.common import get_llm_provider, get_openai_key, jlog
+from scouting.agents.common import get_llm_provider, get_openai_key, jlog, build_global_llm, get_openai_model_supervisor
 
 # System Prompt — scouting
 system_prompt = (
@@ -115,10 +115,10 @@ def _fmt_linea_metricas(nombre_stat: str, datos: Dict[str, Any], prefer_per90: b
 
 class Agente3Explanation:
     def __init__(self, lang: str = "es") -> None:
-        # Factory de proveedor LLM para intercambiabilidad de modelos en el diseño experimental del TFM.
+        # Factory de proveedor LLM centralizado
         self.provider = get_llm_provider()
-        self.model_name = ""
-        self.llm = self._build_llm()
+        self.model_name = get_openai_model_supervisor() if self.provider == "openai" else os.getenv("GROQ_MODEL_SUPERVISOR", "llama-3.3-70b-versatile")
+        self.llm = build_global_llm(temperature=0.35)
         self.lang = lang  # "es" | "en" | "fr" | "it" | "de" (del supervisor)
 
         # Inyecta el idioma humano-legible en el system prompt:
@@ -130,23 +130,6 @@ class Agente3Explanation:
             "es": "español",
         }.get((lang or "es").lower(), "español")
         self.system_prompt = system_prompt.format(lang=lang_label)
-
-    def _build_llm(self) -> BaseChatModel:
-        if self.provider == "openai":
-            self.model_name = "gpt-4o-mini"
-            return ChatOpenAI(
-                model=self.model_name,
-                temperature=0.35,
-                api_key=get_openai_key(),
-            )
-        if self.provider == "groq":
-            self.model_name = "llama-3.3-70b-versatile"
-            return ChatGroq(
-                temperature=0.35,
-                model_name=self.model_name,
-                groq_api_key=os.getenv("GROQ_API_KEY"),
-            )
-        raise ValueError(f"Proveedor LLM no soportado: {self.provider}")
 
 
     def formatear_jugadores(self, resultados: List[Dict]) -> str:

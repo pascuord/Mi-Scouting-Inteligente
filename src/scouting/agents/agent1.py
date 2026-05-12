@@ -963,10 +963,6 @@ Responde SOLO JSON.
             criterios_llm["pie_dominante"] = self.extraer_pie(q)
             criterios_llm["altura_min_cm"], criterios_llm["altura_max_cm"] = self.extraer_altura(q)
             criterios_llm["contrato_max_anios"] = self.extraer_contrato_max(q)
-            # Nacionalidad y liga no están en LLM aún, pero podemos agregar
-            nacionalidades = self.extraer_nacionalidades(q)
-            if nacionalidades:
-                criterios_llm["nacionalidad"] = nacionalidades[0]  # tomar primera
             if self.DEBUG: print(f"[A1][Fallback] usando métodos regex: {criterios_llm}")
         
         # ---- VER ESQUEMA REAL RECIBIDO ----
@@ -1206,30 +1202,12 @@ Responde SOLO JSON.
             if self.DEBUG: print(f"[A1][Contrato] < {contrato_max}: {antes} -> {df.height}")
 
 
-        # ---- Nacionalidad ----
-        nacionalidades_canon = self.extraer_nacionalidades(query)
-        if self.DEBUG: print(f"[A1][Nacionalidad] detectadas={nacionalidades_canon}")
-        if nacionalidades_canon and "nacionalidad" in df.columns:
-            df = df.with_columns(
-                pl.col("nacionalidad")
-                .cast(pl.Utf8, strict=False)
-                .map_elements(_norm_text, return_dtype=pl.Utf8)
-                .alias("nacionalidad_norm")
-            )
-
-            nacionalidades_norm = set(_norm_text(n) for n in nacionalidades_canon)
-            if self.DEBUG: print(f"[A1][Nacionalidad] búsqueda normalizadas={nacionalidades_norm}")
-
-            antes = df.height
-            df = df.filter(
-                (pl.col("nacionalidad_norm").is_in(nacionalidades_norm)) &
-                (pl.col("nacionalidad_norm") != "")
-            )
-            if self.DEBUG: print(f"[A1][Nacionalidad] filtro: {antes} -> {df.height}")
-
-
         # ---- Liga explícita ----
-        ligas = criterios_llm.get("ligas") or self.extraer_ligas(query)
+        ligas = criterios_llm.get("ligas")
+        if not ligas:
+            liga = criterios_llm.get("liga")
+            if liga:
+                ligas = [liga]
         if ligas:
             normalized_ligas = [l for l in ([_normalize_league_name(l) for l in ligas]) if l]
             ligas = list(dict.fromkeys(normalized_ligas))

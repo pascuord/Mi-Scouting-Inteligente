@@ -721,7 +721,13 @@ Query: {query}
         w_emb = self._weights_via_embeddings(query, tipo)
         w_llm = self._weights_via_llm(query, tipo)
 
-        alpha, beta, gamma = 0.5, 0.25, 0.25
+        # El LLM es ahora la fuente primaria para seleccionar métricas.
+        # Si falla o no produce resultados útiles, los intents/embeddings entran como respaldo.
+        if w_llm:
+            alpha, beta, gamma = 0.15, 0.15, 0.7
+        else:
+            alpha, beta, gamma = 0.55, 0.45, 0.0
+
         all_keys = set(w_int) | set(w_emb) | set(w_llm)
         merged = {k: alpha*w_int.get(k, 0.0) + beta*w_emb.get(k, 0.0) + gamma*w_llm.get(k, 0.0) for k in all_keys}
         canonical = _canonicalize_stats(merged)

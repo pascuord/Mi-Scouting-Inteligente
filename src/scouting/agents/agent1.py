@@ -865,18 +865,21 @@ class Agente1HardFilter:
         prompt = f"""
 Eres un extractor de criterios para scouting de fútbol.
 Dada una query en español, extrae SOLO JSON válido con claves para filtros duros.
-Claves posibles: edad_min (int o null), edad_max (int o null), valor_max_euros (float o null), posiciones (lista de str en INGLÉS o null), nacionalidad (str o null), pie_dominante (str: 'left'/'right' o null), altura_min_cm (int o null), altura_max_cm (int o null), contrato_max_anios (float o null).
+Claves posibles: edad_min (int o null), edad_max (int o null), valor_max_euros (float o null), posiciones (lista de str en INGLÉS o null), nacionalidad (str o null), pie_dominante (str: 'left'/'right' o null), altura_min_cm (int o null), altura_max_cm (int o null), contrato_max_anios (float o null), liga (str o null).
 REGLAS:
-- Solo extrae si es relevante para scouting (edad, valor, posición, nacionalidad, pie, altura, contrato).
+- Solo extrae si es relevante para scouting (edad, valor, posición, nacionalidad, pie, altura, contrato, liga).
 - Normaliza posiciones a INGLÉS estándar (valores posibles: 'centre-back', 'left-back', 'right-back', 'full-back', 'left midfield', 'right midfield', 'defensive midfield', 'central midfield', 'attacking midfield', 'left winger', 'right winger', 'winger', 'second striker', 'centre-forward', 'forward', 'goalkeeper').
 - Para valores, incluye unidad implícita (e.g., 'millones' -> multiplica por 1e6).
 - Nacionalidad como país canónico (e.g., 'inglés' -> 'Inglaterra').
+- DESAMBIGUACIÓN GEOGRÁFICA: Distingue siempre la nacionalidad del jugador de la liga en la que juega. Ej: En "pivote belga de la liga italiana", la nacionalidad es 'Bélgica' y la liga es 'Italia'.
+- NORMALIZACIÓN DE LIGAS: Si se pide una liga, debes devolver SU NOMBRE EXACTO según este formato oficial: 'LaLiga', 'Super League (Suiza)', 'Super Lig (Turquía)', 'Premiership (Escocia)'. Si no sabes el formato exacto, devuelve el nombre del país (ej. 'España').
 - Si no hay criterio, pon null.
 - Sé conservador: no inventes criterios no mencionados.
 
 EJEMPLOS:
-- "Extremo izquierdo menor de 25 años con valor menor de 10 millones" -> {{"edad_max": 25, "valor_max_euros": 10000000.0, "posiciones": ["left winger"], "edad_min": null, "nacionalidad": null, "pie_dominante": null, "altura_min_cm": null, "altura_max_cm": null, "contrato_max_anios": null}}
-- "Portero barato zurdo de España" -> {{"valor_max_euros": 1000000.0, "posiciones": ["goalkeeper"], "nacionalidad": "España", "pie_dominante": "left", "edad_min": null, "edad_max": null, "altura_min_cm": null, "altura_max_cm": null, "contrato_max_anios": null}}
+- "Extremo izquierdo menor de 25 años con valor menor de 10 millones" -> {{"edad_max": 25, "valor_max_euros": 10000000.0, "posiciones": ["left winger"], "edad_min": null, "nacionalidad": null, "liga": null, "pie_dominante": null, "altura_min_cm": null, "altura_max_cm": null, "contrato_max_anios": null}}
+- "Portero barato zurdo de España" -> {{"valor_max_euros": 1000000.0, "posiciones": ["goalkeeper"], "nacionalidad": "España", "liga": null, "pie_dominante": "left", "edad_min": null, "edad_max": null, "altura_min_cm": null, "altura_max_cm": null, "contrato_max_anios": null}}
+- "Mediocentro belga de la liga española" -> {{"edad_max": null, "valor_max_euros": null, "posiciones": ["central midfield"], "edad_min": null, "nacionalidad": "Bélgica", "liga": "LaLiga", "pie_dominante": null, "altura_min_cm": null, "altura_max_cm": null, "contrato_max_anios": null}}
 
 Query: {query}
 Responde SOLO JSON.

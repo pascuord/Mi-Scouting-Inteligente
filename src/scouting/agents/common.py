@@ -26,8 +26,11 @@ def env_int(key: str, default: int) -> int:
         return default
 
 def get_indices_dir() -> str:
-    # por defecto usamos data/processed/indices/current
-    return env_str("INDICES_DIR", os.path.join("data","processed","indices","current"))
+    # por defecto usamos data/processed/indices
+    return env_str("INDICES_DIR", os.path.join("data","processed","indices"))
+
+def get_current_indices_dir() -> str:
+    return os.path.join(get_indices_dir(), "current")
 
 def get_openai_model_supervisor() -> str:
     return env_str("OPENAI_MODEL_SUPERVISOR", "gpt-4o-mini")

@@ -145,7 +145,7 @@ def nodo_supervisor(state: PipelineState) -> PipelineState:
     ])
 
     # Trazabilidad de proveedor/modelo para confirmar consistencia de backend en el experimento del TFM.
-    jlog("supervisor_llm_invoke", provider=LLM_PROVIDER, model=SUPERVISOR_MODEL_NAME)
+    jlog("supervisor_llm_invoke", provider="openai", model=os.getenv("OPENAI_MODEL_SUPERVISOR", "gpt-4o-mini"))
     raw = (prompt | llm).invoke({"query": state["query"]}).content.strip()
     
     # Limpieza en caso de que el LLM meta markdown ```json ... ```

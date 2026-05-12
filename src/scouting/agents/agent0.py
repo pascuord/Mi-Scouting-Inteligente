@@ -72,8 +72,8 @@ class Agente0VectorRetriever:
         self.top_k = top_k
         self.encoder = encoder
 
-        # Base de índices: desde env o por defecto
-        self.base = os.getenv("INDICES_DIR", "/data_local/processed/indices")
+        from scouting.agents.common import get_llm_provider, get_current_indices_dir
+        self.base = get_current_indices_dir()
 
         self.indices = {
             "jugador": {

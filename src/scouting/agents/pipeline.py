@@ -20,7 +20,7 @@ from scouting.agents.agent1 import Agente1HardFilter
 from scouting.agents.agent2 import ScoreEvaluatorAgent
 from scouting.agents.agent3 import Agente3Explanation
 from scouting.agents.agent4 import GraphComparisonAgent
-from scouting.agents.common import get_llm_provider, get_openai_key, jlog
+from scouting.agents.common import get_llm_provider, get_openai_key, get_openai_model_supervisor, jlog
 
 
 # ================== ENV & KALEIDO ==================
@@ -29,6 +29,8 @@ BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 
 # ================== CONFIGURACIÓN DEL LLM GLOBAL ==================
 # Definimos el LLM aquí arriba para que TODAS las funciones puedan usarlo
+LLM_PROVIDER = get_llm_provider()
+SUPERVISOR_MODEL_NAME = get_openai_model_supervisor()
 llm = ChatOpenAI(
     temperature=0,
     model_name="gpt-5.4-mini",
@@ -39,7 +41,7 @@ llm = ChatOpenAI(
 print("=" * 60)
 print("[PIPELINE] LLM Configuration:")
 print(f"  Model: {llm.model_name}")
-print(f"  Provider: OpenAI")
+print(f"  Provider: {LLM_PROVIDER}")
 print(f"  Temperature: {llm.temperature}")
 print(f"  API Key: {'✓ Configured' if os.getenv('OPENAI_API_KEY') else '✗ NOT CONFIGURED'}")
 print("=" * 60)

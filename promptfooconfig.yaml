@@ -1,0 +1,58 @@
+# =============================================================================
+# promptfooconfig.yaml — Matriz de evaluación para ScoutingInteligente
+# =============================================================================
+# Ejecutar con:   npx promptfoo@latest eval
+# Visualizar:     npx promptfoo@latest view
+# =============================================================================
+
+description: "Benchmark multiagente ScoutingInteligente — TFM UNIR"
+
+# ── Proveedores ──────────────────────────────────────────────────────────────
+# Ambos apuntan al mismo script Python; la diferenciación se hace vía `config`.
+providers:
+  - id: file://scouting_provider.py
+    label: "OpenAI gpt-4o-mini"
+    config:
+      provider: openai
+      model: gpt-4o-mini
+
+  - id: file://scouting_provider.py
+    label: "Groq gpt-oss-120b"
+    config:
+      provider: groq
+      model: openai/gpt-oss-120b
+
+# ── Prompt ───────────────────────────────────────────────────────────────────
+# Promptfoo renderiza {{pregunta}} con el valor de cada test case y lo pasa
+# como argumento `prompt` a call_api().
+prompts:
+  - "{{pregunta}}"
+
+# ── Test Set (Anexo D) ───────────────────────────────────────────────────────
+tests:
+  - vars:
+      pregunta: "Delantero de la liga escocesa con buen juego aéreo."
+  - vars:
+      pregunta: "Lateral derecho de la Eredivisie rápido y con buen centro."
+  - vars:
+      pregunta: "Mediocentro defensivo de la liga portuguesa con alta capacidad de recuperación de balón."
+  - vars:
+      pregunta: "Defensa central menor de 23 años de la liga suiza con buena salida de balón."
+  - vars:
+      pregunta: "Extremo izquierdo de la Championship inglesa con buen 1vs1 y capacidad de desborde."
+  - vars:
+      pregunta: "Pivote de la liga turca con buena salida de balón y valor inferior a 10 millones."
+  - vars:
+      pregunta: "Delantero sub-21 de ligas nórdicas con buen pressing y más de 0.40 goles por partido."
+  - vars:
+      pregunta: "Central zurdo de Sudamérica con más de 1.90 m, dominante en duelos aéreos y experiencia internacional."
+  - vars:
+      pregunta: "Interior ofensivo de segunda división francesa con buen último pase, alta producción de xA y contrato < 2 años."
+  - vars:
+      pregunta: "Reemplazo para Rodri: 22-27 años, posicionamiento defensivo, pases progresivos, < 35 millones."
+# ── Pruebas de robustez ───────────────────────────────────────────────────────
+  - vars:
+      pregunta: "Búscame a LeBron James"
+  - vars:
+      pregunta: "Búscame un portero que marque más de 20 goles por temporada"
+

@@ -28,8 +28,44 @@ providers:
 prompts:
   - "{{pregunta}}"
 
+# ── Rúbrica global (LLM-as-Judge) ───────────────────────────────────────────
+# Se aplica a TODOS los test cases salvo que un test lo sobrescriba.
+# El modelo "juez" (gpt-4o) evalúa cada respuesta del pipeline y devuelve
+# PASS/FAIL junto con una justificación.
+defaultTest:
+  options:
+    provider: openai:gpt-4o
+  assert:
+    - type: llm-rubric
+      value: >
+        Eres un evaluador experto en informes de scouting futbolístico.
+        Evalúa la respuesta del sistema según los siguientes criterios:
+
+        1. TONO PROFESIONAL: ¿El informe tiene un tono analítico y profesional,
+           similar al de un ojeador de un club de fútbol? No debe ser coloquial
+           ni excesivamente informal.
+
+        2. FUNDAMENTACIÓN EN DATOS: ¿La explicación se apoya en datos concretos
+           (percentiles, valores per90, puntuaciones) y NO inventa estadísticas
+           ni jugadores ficticios? Cada afirmación sobre rendimiento debe estar
+           respaldada por una métrica específica mencionada en el texto.
+
+        3. USO DE PERCENTILES: ¿Se mencionan y contextualizan correctamente
+           los percentiles de las métricas clave? Un percentil alto debe
+           interpretarse como fortaleza y uno bajo como debilidad relativa.
+
+        4. COHERENCIA CON LA CONSULTA: ¿Los jugadores recomendados encajan
+           razonablemente con el perfil solicitado en la pregunta original
+           (posición, liga, edad, características)?
+
+        La respuesta PASA si cumple razonablemente los 4 criterios.
+        La respuesta FALLA si inventa datos, el tono no es profesional,
+        o los candidatos no encajan con lo pedido.
+      threshold: 0.7
+
 # ── Test Set (Anexo D) ───────────────────────────────────────────────────────
 tests:
+  # ── Consultas estándar de scouting (heredan la rúbrica global) ─────────────
   - vars:
       pregunta: "Delantero de la liga escocesa con buen juego aéreo."
   - vars:
@@ -48,11 +84,46 @@ tests:
       pregunta: "Central zurdo de Sudamérica con más de 1.90 m, dominante en duelos aéreos y experiencia internacional."
   - vars:
       pregunta: "Interior ofensivo de segunda división francesa con buen último pase, alta producción de xA y contrato < 2 años."
+
+  # ── Consulta con aserción específica adicional ─────────────────────────────
+  # Hereda la rúbrica global Y además pide al juez que verifique el perfil.
   - vars:
       pregunta: "Reemplazo para Rodri: 22-27 años, posicionamiento defensivo, pases progresivos, < 35 millones."
-# ── Pruebas de robustez ───────────────────────────────────────────────────────
+    assert:
+      - type: llm-rubric
+        value: >
+          Además de los criterios generales de calidad, verifica que los
+          candidatos propuestos sean mediocentros defensivos o pivotes con
+          un perfil de posesión y construcción de juego (pases progresivos,
+          recuperación de balón, posicionamiento). No deben ser mediapuntas
+          ofensivos ni delanteros. El rango de edad (22-27) y el valor de
+          mercado (< 35M€) deben respetarse o mencionarse explícitamente.
+
+  # ── Pruebas de robustez (sobrescriben la rúbrica global) ───────────────────
+  # Estas consultas NO deben generar un informe de scouting normal.
   - vars:
       pregunta: "Búscame a LeBron James"
+    assert:
+      - type: llm-rubric
+        value: >
+          Esta es una consulta fuera del dominio del sistema (baloncesto, no
+          fútbol). La respuesta debe indicar de forma educada que el sistema
+          está limitado exclusivamente a scouting de fútbol y rechazar la
+          consulta. NO debe inventar un perfil futbolístico ficticio para
+          "LeBron James" ni devolver jugadores de fútbol sin relación.
+          PASA si rechaza correctamente; FALLA si genera un informe de
+          scouting como si fuera una consulta válida.
+
   - vars:
       pregunta: "Búscame un portero que marque más de 20 goles por temporada"
+    assert:
+      - type: llm-rubric
+        value: >
+          Esta consulta pide un perfil estadísticamente imposible para un
+          portero. La respuesta debe indicar que no se han encontrado
+          candidatos que cumplan ese criterio, o que la petición es
+          irrealizable para la posición de portero. NO debe inventar
+          jugadores ficticios que supuestamente marquen 20+ goles siendo
+          porteros. PASA si comunica honestamente la ausencia de
+          resultados; FALLA si fabrica candidatos inexistentes.
 

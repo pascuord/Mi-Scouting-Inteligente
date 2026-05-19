@@ -11,6 +11,8 @@ matriz (proveedor × pregunta).  Este módulo:
      construya el LLM correcto en cada ejecución.
   3. Invoca `pipeline.invoke()` y consolida la salida (explicación + nombres
      de candidatos) en la clave "output" que Promptfoo espera.
+  4. Captura tokens y coste económico para que Promptfoo los muestre en la
+     tabla comparativa.
 """
 
 from __future__ import annotations
@@ -20,11 +22,36 @@ import os
 import sys
 import time
 
+# ── Forzar uso de CPU para evitar CUDA Out of Memory en Promptfoo ──────────
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
+
 # ── Asegurar que el directorio src está en PYTHONPATH ──────────────────────
 _ROOT = os.path.dirname(os.path.abspath(__file__))
 _SRC  = os.path.join(_ROOT, "src")
 if _SRC not in sys.path:
     sys.path.insert(0, _SRC)
+
+
+# ── Precios por millón de tokens (USD) — actualizado mayo 2026 ─────────────
+# Fuente: páginas de pricing de OpenAI y Groq.
+# Estructura: { modelo: (precio_input_por_1M, precio_output_por_1M) }
+MODEL_PRICING = {
+    # OpenAI
+    "gpt-4o-mini":   (0.15,   0.60),
+    "gpt-4o":        (2.50,  10.00),
+    "gpt-5.5":       (1.00,   2.00),    # Precio estimado; ajustar cuando sea público
+    # Groq (modelos open-source, precios Groq API)
+    "openai/gpt-oss-120b":      (0.30, 0.80),
+    "llama-3.3-70b-versatile":  (0.59, 0.79),
+}
+
+
+def _estimate_cost(model: str, prompt_tokens: int, completion_tokens: int) -> float:
+    """Calcula el coste en USD a partir del modelo y los tokens consumidos."""
+    prices = MODEL_PRICING.get(model, (0.0, 0.0))
+    input_cost  = (prompt_tokens / 1_000_000) * prices[0]
+    output_cost = (completion_tokens / 1_000_000) * prices[1]
+    return round(input_cost + output_cost, 6)
 
 
 def call_api(prompt: str, options: dict, context: dict) -> dict:
@@ -43,8 +70,8 @@ def call_api(prompt: str, options: dict, context: dict) -> dict:
     Returns
     -------
     dict
-        ``{"output": "<texto consolidado>"}`` en caso de éxito, o
-        ``{"error": "<mensaje>"}`` en caso de fallo.
+        ``{"output": "<texto>", "tokenUsage": {...}, "cost": <float>}``
+        en caso de éxito, o ``{"error": "<mensaje>"}`` en caso de fallo.
     """
     config     = options.get("config", {})
     provider   = config.get("provider", "openai")
@@ -65,14 +92,30 @@ def call_api(prompt: str, options: dict, context: dict) -> dict:
     importlib.reload(_common)
     importlib.reload(_pipeline)
 
-    # ── 3. Invocar el pipeline ─────────────────────────────────────────────
+    # ── 3. Invocar el pipeline con captura de costes ──────────────────────
     try:
+        from langchain_community.callbacks.manager import get_openai_callback
+
         start = time.time()
-        state = _pipeline.pipeline.invoke({
-            "query":   prompt,
-            "chat_id": "eval_promptfoo",
-        })
+
+        with get_openai_callback() as cb:
+            state = _pipeline.pipeline.invoke({
+                "query":   prompt,
+                "chat_id": "eval_promptfoo",
+            })
+
         latencia = round(time.time() - start, 2)
+
+        # Tokens capturados por el callback de LangChain
+        prompt_tokens     = cb.prompt_tokens
+        completion_tokens = cb.completion_tokens
+        total_tokens      = cb.total_tokens
+
+        # Coste: si OpenAI lo reporta, lo usamos; si no, lo estimamos
+        if cb.total_cost and cb.total_cost > 0:
+            cost = round(cb.total_cost, 6)
+        else:
+            cost = _estimate_cost(model_name, prompt_tokens, completion_tokens)
 
         # Extraer campos del state resultante
         explicacion = state.get("explicacion", "ERROR: Sin respuesta")
@@ -89,7 +132,15 @@ def call_api(prompt: str, options: dict, context: dict) -> dict:
             f"Latencia: {latencia}s | Provider: {provider} | Model: {model_name}",
         ]
 
-        return {"output": "\n".join(salida_partes)}
+        return {
+            "output": "\n".join(salida_partes),
+            "tokenUsage": {
+                "total":      total_tokens,
+                "prompt":     prompt_tokens,
+                "completion": completion_tokens,
+            },
+            "cost": cost,
+        }
 
     except Exception as exc:
         return {"error": f"[{provider}/{model_name}] {exc.__class__.__name__}: {exc}"}

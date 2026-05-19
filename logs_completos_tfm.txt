@@ -1,0 +1,1238 @@
+================================================================================
+DUMP COMPLETO DE LOGS DE SCOUTING PARA TFM
+================================================================================
+
+
+################################################################################
+### EVALUANDO PROVEEDOR: OPENAI | MODELO: gpt-4o-mini
+################################################################################
+
+
+--- [PREGUNTA 1/12] ---
+Query: Delantero de la liga escocesa con buen juego aéreo.
+
+[SUPERVISOR] domain=ok lang=es query_es=Delantero de la liga escocesa con buen juego aéreo....
+{"ts": "2026-05-19T21:18:14.218001Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Delantero de la liga escocesa con buen juego aéreo.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_min': None, 'edad_max': None, 'valor_max_euros': None, 'posiciones': ['centre-forward'], 'nacionalidad': None, 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': None, 'liga': 'Premiership (Escocia)'}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=None
+[A1][Valor] max_detectado=None
+[A1][Posicion] detectadas=['centre-forward']
+[A1][Posicion] filtro: 5000 -> 762
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=[]
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 762 -> 762
+Agente 1: Filtrados 762 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 762
+Minutos requeridos: 200
+712
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1243, 3840)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 2/12] ---
+Query: Lateral derecho de la Eredivisie rápido y con buen centro.
+
+[SUPERVISOR] domain=ok lang=es query_es=Lateral derecho de la Eredivisie rápido y con buen centro....
+{"ts": "2026-05-19T21:20:09.926763Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Lateral derecho de la Eredivisie rápido y con buen centro.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_min': None, 'edad_max': None, 'valor_max_euros': None, 'posiciones': ['right-back'], 'nacionalidad': None, 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': None, 'liga': 'Eredivisie'}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=None
+[A1][Valor] max_detectado=None
+[A1][Posicion] detectadas=['right-back']
+[A1][Posicion] filtro: 5000 -> 466
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=['Eredivisie']
+[A1][Liga] filtro: 466 -> 33
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 33 -> 33
+Agente 1: Filtrados 33 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 33
+Minutos requeridos: 200
+31
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1243, 3840)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 3/12] ---
+Query: Mediocentro defensivo de la liga portuguesa con alta capacidad de recuperación de balón.
+
+[SUPERVISOR] domain=ok lang=es query_es=Mediocentro defensivo de la liga portuguesa con alta capacidad de recuperación de balón....
+{"ts": "2026-05-19T21:21:32.768987Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Mediocentro defensivo de la liga portuguesa con alta capacidad de recuperación de balón.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_max': None, 'valor_max_euros': None, 'posiciones': ['defensive midfield'], 'edad_min': None, 'nacionalidad': None, 'liga': 'Liga Portugal', 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': None}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=None
+[A1][Valor] max_detectado=None
+[A1][Posicion] detectadas=['defensive midfield']
+[A1][Posicion] filtro: 5000 -> 762
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=['Liga Portugal']
+[A1][Liga] filtro: 762 -> 22
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 22 -> 22
+Agente 1: Filtrados 22 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 22
+Minutos requeridos: 200
+19
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1232, 3840)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 4/12] ---
+Query: Defensa central menor de 23 años de la liga suiza con buena salida de balón.
+
+[SUPERVISOR] domain=ok lang=es query_es=Defensa central menor de 23 años de la liga suiza con buena salida de balón....
+{"ts": "2026-05-19T21:21:54.880344Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Defensa central menor de 23 años de la liga suiza con buena salida de balón.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_max': 23, 'valor_max_euros': None, 'posiciones': ['centre-back'], 'edad_min': None, 'nacionalidad': None, 'liga': 'Super League (Suiza)', 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': None}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=23
+[A1][Edad] <= 23: 5000 -> 2220
+[A1][Valor] max_detectado=None
+[A1][Posicion] detectadas=['centre-back']
+[A1][Posicion] filtro: 2220 -> 377
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=[]
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 377 -> 377
+Agente 1: Filtrados 377 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 377
+Minutos requeridos: 200
+327
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1227, 3840)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 5/12] ---
+Query: Extremo izquierdo de la Championship inglesa con buen 1vs1 y capacidad de desborde.
+
+[SUPERVISOR] domain=ok lang=es query_es=Extremo izquierdo de la Championship inglesa con buen 1vs1 y capacidad de desborde....
+{"ts": "2026-05-19T21:22:18.337656Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Extremo izquierdo de la Championship inglesa con buen 1vs1 y capacidad de desborde.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_min': None, 'edad_max': None, 'valor_max_euros': None, 'posiciones': ['left winger'], 'nacionalidad': None, 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': None, 'liga': 'Championship'}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=None
+[A1][Valor] max_detectado=None
+[A1][Posicion] detectadas=['left winger']
+[A1][Posicion] filtro: 5000 -> 431
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=['Championship']
+[A1][Liga] filtro: 431 -> 31
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 31 -> 31
+Agente 1: Filtrados 31 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 31
+Minutos requeridos: 200
+30
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1234, 3839)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 6/12] ---
+Query: Pivote de la liga turca con buena salida de balón y valor inferior a 10 millones.
+
+[SUPERVISOR] domain=ok lang=es query_es=Pivote de la liga turca con buena salida de balón y valor inferior a 10 millones....
+{"ts": "2026-05-19T21:22:42.516605Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Pivote de la liga turca con buena salida de balón y valor inferior a 10 millones.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_max': None, 'valor_max_euros': 10000000.0, 'posiciones': ['defensive midfield'], 'edad_min': None, 'nacionalidad': None, 'liga': 'Super Lig (Turquía)', 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': None}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=None
+[A1][Valor] max_detectado=10000000.0
+[A1][Valor] <= 10000000.0: 5000 -> 4405
+[A1][Posicion] detectadas=['defensive midfield']
+[A1][Posicion] filtro: 4405 -> 494
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=[]
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 494 -> 494
+Agente 1: Filtrados 494 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 494
+Minutos requeridos: 200
+444
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1232, 3840)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 7/12] ---
+Query: Delantero sub-21 de ligas nórdicas con buen pressing y más de 0.40 goles por partido.
+
+[SUPERVISOR] domain=ok lang=es query_es=Delantero sub-21 de ligas nórdicas con buen pressing y más de 0.40 goles por partido....
+{"ts": "2026-05-19T21:23:05.852895Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Delantero sub-21 de ligas nórdicas con buen pressing y más de 0.40 goles por partido.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_max': 21, 'ligas': None, 'edad_min': None, 'valor_max_euros': None, 'posiciones': ['centre-forward', 'forward'], 'nacionalidad': None, 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': None}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=21
+[A1][Edad] <= 21: 5000 -> 1626
+[A1][Valor] max_detectado=None
+[A1][Posicion] detectadas=['centre-forward', 'forward']
+[A1][Posicion] filtro: 1626 -> 199
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=None
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 199 -> 199
+Agente 1: Filtrados 199 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 199
+Minutos requeridos: 200
+168
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1233, 3840)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 8/12] ---
+Query: Central zurdo de Sudamérica con más de 1.90 m, dominante en duelos aéreos y experiencia internacional.
+
+[SUPERVISOR] domain=ok lang=es query_es=Central zurdo de Sudamérica con más de 1.90 m, dominante en duelos aéreos y experiencia internacional....
+{"ts": "2026-05-19T21:23:31.881625Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Central zurdo de Sudamérica con más de 1.90 m, dominante en duelos aéreos y experiencia internacional.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_min': None, 'edad_max': None, 'valor_max_euros': None, 'posiciones': ['centre-back'], 'nacionalidad': None, 'pie_dominante': 'left', 'altura_min_cm': 190, 'altura_max_cm': None, 'contrato_max_anios': None, 'liga': None}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=None
+[A1][Valor] max_detectado=None
+[A1][Posicion] detectadas=['centre-back']
+[A1][Posicion] filtro: 5000 -> 975
+[A1][Pie] detectado=left
+[A1][Pie] left/both: 975 -> 245
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=1.9 max=None
+[A1][Altura] >= 1.9: 245 -> 77
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=None
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 77 -> 77
+Agente 1: Filtrados 77 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 77
+Minutos requeridos: 200
+71
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1243, 3840)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 9/12] ---
+Query: Interior ofensivo de segunda división francesa con buen último pase, alta producción de xA y contrato < 2 años.
+
+[SUPERVISOR] domain=ok lang=es query_es=Interior ofensivo de segunda división francesa con buen último pase, alta producción de xA y contrato < 2 años....
+{"ts": "2026-05-19T21:24:57.743224Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Interior ofensivo de segunda división francesa con buen último pase, alta producción de xA y contrato < 2 años.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_max': None, 'valor_max_euros': None, 'posiciones': ['attacking midfield'], 'edad_min': None, 'nacionalidad': None, 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': 2.0, 'liga': 'LaLiga2'}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=None
+[A1][Valor] max_detectado=None
+[A1][Posicion] detectadas=['attacking midfield']
+[A1][Posicion] filtro: 5000 -> 461
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=2.0
+[A1][Contrato][DEBUG] contrato_max=2.0
+[A1][Contrato][DEBUG] sample parsed contract_details/años_contrato (not null): [{'contract_details': '{"joined": "01/07/2024", "contract_expires": "30/06/2030", "last_renewal": "16/01/2026"}', 'años_contrato': 4.117808219178082}, {'contract_details': '{"joined": "16/07/2024", "contract_expires": "30/06/2028", "last_renewal": "23/12/2024"}', 'años_contrato': 2.117808219178082}, {'contract_details': '{"joined": "16/07/2025", "contract_expires": "30/06/2029", "last_renewal": null}', 'años_contrato': 3.117808219178082}]
+[A1][Contrato][DEBUG] sample unparsed contract_details/años_contrato (null): [{'contract_details': '{"joined": "01/07/2025", "contract_expires": "-", "last_renewal": null}', 'años_contrato': None}, {'contract_details': '{"joined": "12/01/2026", "contract_expires": "-", "last_renewal": null}', 'años_contrato': None}, {'contract_details': '{"joined": "17/01/2024", "contract_expires": "-", "last_renewal": "02/01/2023"}', 'años_contrato': None}]
+[A1][Contrato] < 2.0: 461 -> 226
+[A1][Liga] detectadas=['LaLiga2']
+[A1][Liga] filtro: 226 -> 4
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 4 -> 4
+Agente 1: Filtrados 4 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 4
+Minutos requeridos: 200
+4
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1243, 3840)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 10/12] ---
+Query: Reemplazo para Rodri: 22-27 años, posicionamiento defensivo, pases progresivos, < 35 millones.
+
+[SUPERVISOR] domain=ok lang=es query_es=Reemplazo para Rodri: 22-27 años, posicionamiento defensivo, pases progresivos, < 35 millones....
+{"ts": "2026-05-19T21:26:22.462232Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Reemplazo para Rodri: 22-27 años, posicionamiento defensivo, pases progresivos, < 35 millones.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_min': 22, 'edad_max': 27, 'valor_max_euros': 35000000.0, 'posiciones': ['defensive midfield'], 'nacionalidad': None, 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': None, 'ligas': None}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=22 max=27
+[A1][Edad] <= 27: 5000 -> 3783
+[A1][Edad] >= 22: 3783 -> 2391
+[A1][Valor] max_detectado=35000000.0
+[A1][Valor] <= 35000000.0: 2391 -> 2276
+[A1][Posicion] detectadas=['defensive midfield']
+[A1][Posicion] filtro: 2276 -> 252
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=None
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 252 -> 252
+Agente 1: Filtrados 252 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 252
+Minutos requeridos: 200
+242
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1232, 3840)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 11/12] ---
+Query: Búscame a LeBron James
+
+[SUPERVISOR] domain=fin lang=es query_es=Búscame a LeBron James...
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 12/12] ---
+Query: Búscame un portero que marque más de 20 goles por temporada
+
+[SUPERVISOR] domain=fin lang=es query_es=Búscame un portero que marque más de 20 goles por temporada...
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+################################################################################
+### EVALUANDO PROVEEDOR: GROQ | MODELO: openai/gpt-oss-120b
+################################################################################
+
+
+--- [PREGUNTA 1/12] ---
+Query: Delantero de la liga escocesa con buen juego aéreo.
+
+[SUPERVISOR] domain=ok lang=es query_es=Delantero de la liga escocesa con buen juego aéreo....
+{"ts": "2026-05-19T21:26:53.301467Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Delantero de la liga escocesa con buen juego aéreo.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_min': None, 'edad_max': None, 'valor_max_euros': None, 'posiciones': ['centre-forward'], 'nacionalidad': None, 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': None, 'liga': 'Premiership (Escocia)'}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=None
+[A1][Valor] max_detectado=None
+[A1][Posicion] detectadas=['centre-forward']
+[A1][Posicion] filtro: 5000 -> 762
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=[]
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 762 -> 762
+Agente 1: Filtrados 762 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 762
+Minutos requeridos: 200
+712
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1233, 3840)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 2/12] ---
+Query: Lateral derecho de la Eredivisie rápido y con buen centro.
+
+[SUPERVISOR] domain=ok lang=es query_es=Lateral derecho de la Eredivisie rápido y con buen centro....
+{"ts": "2026-05-19T21:27:10.481880Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Lateral derecho de la Eredivisie rápido y con buen centro.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_min': None, 'edad_max': None, 'valor_max_euros': None, 'posiciones': ['right-back'], 'nacionalidad': None, 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': None, 'liga': 'Eredivisie'}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=None
+[A1][Valor] max_detectado=None
+[A1][Posicion] detectadas=['right-back']
+[A1][Posicion] filtro: 5000 -> 466
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=['Eredivisie']
+[A1][Liga] filtro: 466 -> 33
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 33 -> 33
+Agente 1: Filtrados 33 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 33
+Minutos requeridos: 200
+31
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1232, 3840)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 3/12] ---
+Query: Mediocentro defensivo de la liga portuguesa con alta capacidad de recuperación de balón.
+
+[SUPERVISOR] domain=ok lang=es query_es=Mediocentro defensivo de la liga portuguesa con alta capacidad de recuperación de balón....
+{"ts": "2026-05-19T21:27:44.484789Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Mediocentro defensivo de la liga portuguesa con alta capacidad de recuperación de balón.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_max': None, 'valor_max_euros': None, 'posiciones': ['defensive midfield'], 'edad_min': None, 'nacionalidad': None, 'liga': 'Liga Portugal', 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': None}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=None
+[A1][Valor] max_detectado=None
+[A1][Posicion] detectadas=['defensive midfield']
+[A1][Posicion] filtro: 5000 -> 762
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=['Liga Portugal']
+[A1][Liga] filtro: 762 -> 22
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 22 -> 22
+Agente 1: Filtrados 22 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 22
+Minutos requeridos: 200
+19
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1232, 3840)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 4/12] ---
+Query: Defensa central menor de 23 años de la liga suiza con buena salida de balón.
+
+[SUPERVISOR] domain=ok lang=es query_es=Defensa central menor de 23 años de la liga suiza con buena salida de balón....
+{"ts": "2026-05-19T21:28:18.789165Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Defensa central menor de 23 años de la liga suiza con buena salida de balón.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_max': 23, 'valor_max_euros': None, 'posiciones': ['centre-back'], 'edad_min': None, 'nacionalidad': None, 'liga': 'Super League (Suiza)', 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': None}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=23
+[A1][Edad] <= 23: 5000 -> 2220
+[A1][Valor] max_detectado=None
+[A1][Posicion] detectadas=['centre-back']
+[A1][Posicion] filtro: 2220 -> 377
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=[]
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 377 -> 377
+Agente 1: Filtrados 377 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 377
+Minutos requeridos: 200
+327
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1243, 3840)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 5/12] ---
+Query: Extremo izquierdo de la Championship inglesa con buen 1vs1 y capacidad de desborde.
+
+[SUPERVISOR] domain=ok lang=es query_es=Extremo izquierdo de la Championship inglesa con buen 1vs1 y capacidad de desborde....
+{"ts": "2026-05-19T21:29:35.589912Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Extremo izquierdo de la Championship inglesa con buen 1vs1 y capacidad de desborde.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_min': None, 'edad_max': None, 'valor_max_euros': None, 'posiciones': ['left winger'], 'nacionalidad': None, 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': None, 'liga': 'Championship'}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=None
+[A1][Valor] max_detectado=None
+[A1][Posicion] detectadas=['left winger']
+[A1][Posicion] filtro: 5000 -> 431
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=['Championship']
+[A1][Liga] filtro: 431 -> 31
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 31 -> 31
+Agente 1: Filtrados 31 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 31
+Minutos requeridos: 200
+30
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1234, 3839)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 6/12] ---
+Query: Pivote de la liga turca con buena salida de balón y valor inferior a 10 millones.
+
+[SUPERVISOR] domain=ok lang=es query_es=Pivote de la liga turca con buena salida de balón y valor inferior a 10 millones....
+{"ts": "2026-05-19T21:29:51.890265Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Pivote de la liga turca con buena salida de balón y valor inferior a 10 millones.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_max': None, 'valor_max_euros': 10000000.0, 'posiciones': ['defensive midfield'], 'edad_min': None, 'nacionalidad': None, 'liga': 'Super Lig (Turquía)', 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': None}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=None
+[A1][Valor] max_detectado=10000000.0
+[A1][Valor] <= 10000000.0: 5000 -> 4405
+[A1][Posicion] detectadas=['defensive midfield']
+[A1][Posicion] filtro: 4405 -> 494
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=[]
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 494 -> 494
+Agente 1: Filtrados 494 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 494
+Minutos requeridos: 200
+444
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1232, 3840)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 7/12] ---
+Query: Delantero sub-21 de ligas nórdicas con buen pressing y más de 0.40 goles por partido.
+
+[SUPERVISOR] domain=ok lang=es query_es=Delantero sub-21 de ligas nórdicas con buen pressing y más de 0.40 goles por partido....
+{"ts": "2026-05-19T21:30:12.558276Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Delantero sub-21 de ligas nórdicas con buen pressing y más de 0.40 goles por partido.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_max': 21, 'ligas': None, 'edad_min': None, 'valor_max_euros': None, 'posiciones': ['centre-forward'], 'nacionalidad': None, 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': None}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=21
+[A1][Edad] <= 21: 5000 -> 1626
+[A1][Valor] max_detectado=None
+[A1][Posicion] detectadas=['centre-forward']
+[A1][Posicion] filtro: 1626 -> 199
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=None
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 199 -> 199
+Agente 1: Filtrados 199 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 199
+Minutos requeridos: 200
+168
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1233, 3840)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 8/12] ---
+Query: Central zurdo de Sudamérica con más de 1.90 m, dominante en duelos aéreos y experiencia internacional.
+
+[SUPERVISOR] domain=ok lang=es query_es=Central zurdo de Sudamérica con más de 1.90 m, dominante en duelos aéreos y experiencia internacional....
+{"ts": "2026-05-19T21:30:34.572905Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Central zurdo de Sudamérica con más de 1.90 m, dominante en duelos aéreos y experiencia internacional.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_min': None, 'edad_max': None, 'valor_max_euros': None, 'posiciones': ['centre-back'], 'nacionalidad': 'Sudamérica', 'pie_dominante': 'left', 'altura_min_cm': 190, 'altura_max_cm': None, 'contrato_max_anios': None, 'liga': None}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=None
+[A1][Valor] max_detectado=None
+[A1][Posicion] detectadas=['centre-back']
+[A1][Posicion] filtro: 5000 -> 975
+[A1][Pie] detectado=left
+[A1][Pie] left/both: 975 -> 245
+[A1][Nacionalidad] detectada=Sudamérica
+[A1][Nacionalidad] == Sudamérica (nacionalidad): 245 -> 0
+[A1][Altura] min=1.9 max=None
+[A1][Altura] >= 1.9: 0 -> 0
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=None
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 0 -> 0
+Agente 1: Filtrados 0 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 0
+Minutos requeridos: 200
+0
+[charts] radars_collage failed: AssertionError
+[charts] pizza_collage failed: AssertionError
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 9/12] ---
+Query: Interior ofensivo de segunda división francesa con buen último pase, alta producción de xA y contrato < 2 años.
+
+[SUPERVISOR] domain=ok lang=es query_es=Interior ofensivo de segunda división francesa con buen último pase, alta producción de xA y contrato < 2 años....
+{"ts": "2026-05-19T21:30:41.945700Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Interior ofensivo de segunda división francesa con buen último pase, alta producción de xA y contrato < 2 años.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_max': None, 'valor_max_euros': None, 'posiciones': ['attacking midfield'], 'edad_min': None, 'nacionalidad': None, 'liga': 'LaLiga2', 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': 2.0}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=None
+[A1][Valor] max_detectado=None
+[A1][Posicion] detectadas=['attacking midfield']
+[A1][Posicion] filtro: 5000 -> 461
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=2.0
+[A1][Contrato][DEBUG] contrato_max=2.0
+[A1][Contrato][DEBUG] sample parsed contract_details/años_contrato (not null): [{'contract_details': '{"joined": "01/07/2024", "contract_expires": "30/06/2030", "last_renewal": "16/01/2026"}', 'años_contrato': 4.117808219178082}, {'contract_details': '{"joined": "16/07/2024", "contract_expires": "30/06/2028", "last_renewal": "23/12/2024"}', 'años_contrato': 2.117808219178082}, {'contract_details': '{"joined": "16/07/2025", "contract_expires": "30/06/2029", "last_renewal": null}', 'años_contrato': 3.117808219178082}]
+[A1][Contrato][DEBUG] sample unparsed contract_details/años_contrato (null): [{'contract_details': '{"joined": "01/07/2025", "contract_expires": "-", "last_renewal": null}', 'años_contrato': None}, {'contract_details': '{"joined": "12/01/2026", "contract_expires": "-", "last_renewal": null}', 'años_contrato': None}, {'contract_details': '{"joined": "17/01/2024", "contract_expires": "-", "last_renewal": "02/01/2023"}', 'años_contrato': None}]
+[A1][Contrato] < 2.0: 461 -> 226
+[A1][Liga] detectadas=['LaLiga2']
+[A1][Liga] filtro: 226 -> 4
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 4 -> 4
+Agente 1: Filtrados 4 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 4
+Minutos requeridos: 200
+4
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1234, 3839)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 10/12] ---
+Query: Reemplazo para Rodri: 22-27 años, posicionamiento defensivo, pases progresivos, < 35 millones.
+
+[SUPERVISOR] domain=ok lang=es query_es=Reemplazo para Rodri: 22-27 años, posicionamiento defensivo, pases progresivos, < 35 millones....
+{"ts": "2026-05-19T21:31:04.387446Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Reemplazo para Rodri: 22-27 años, posicionamiento defensivo, pases progresivos, < 35 millones.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_min': 22, 'edad_max': 27, 'valor_max_euros': 35000000.0, 'posiciones': ['defensive midfield'], 'nacionalidad': None, 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': None, 'ligas': None}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=22 max=27
+[A1][Edad] <= 27: 5000 -> 3783
+[A1][Edad] >= 22: 3783 -> 2391
+[A1][Valor] max_detectado=35000000.0
+[A1][Valor] <= 35000000.0: 2391 -> 2276
+[A1][Posicion] detectadas=['defensive midfield']
+[A1][Posicion] filtro: 2276 -> 252
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=None
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 252 -> 252
+Agente 1: Filtrados 252 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 252
+Minutos requeridos: 200
+242
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1232, 3840)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 11/12] ---
+Query: Búscame a LeBron James
+
+[SUPERVISOR] domain=fin lang=es query_es=Búscame a LeBron James...
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 12/12] ---
+Query: Búscame un portero que marque más de 20 goles por temporada
+
+[SUPERVISOR] domain=fin lang=es query_es=Búscame un portero que marque más de 20 goles por temporada...
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+################################################################################
+### EVALUANDO PROVEEDOR: OPENAI | MODELO: gpt-5.5
+################################################################################
+
+
+--- [PREGUNTA 1/12] ---
+Query: Delantero de la liga escocesa con buen juego aéreo.
+
+[SUPERVISOR] domain=ok lang=es query_es=Delantero de la liga escocesa con buen juego aéreo....
+{"ts": "2026-05-19T21:31:30.483755Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Delantero de la liga escocesa con buen juego aéreo.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_min': None, 'edad_max': None, 'valor_max_euros': None, 'posiciones': ['centre-forward'], 'nacionalidad': None, 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': None, 'liga': 'Premiership (Escocia)'}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=None
+[A1][Valor] max_detectado=None
+[A1][Posicion] detectadas=['centre-forward']
+[A1][Posicion] filtro: 5000 -> 762
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=[]
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 762 -> 762
+Agente 1: Filtrados 762 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 762
+Minutos requeridos: 200
+712
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1233, 3840)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 2/12] ---
+Query: Lateral derecho de la Eredivisie rápido y con buen centro.
+
+[SUPERVISOR] domain=ok lang=es query_es=Lateral derecho de la Eredivisie rápido y con buen centro....
+{"ts": "2026-05-19T21:32:16.184022Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Lateral derecho de la Eredivisie rápido y con buen centro.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_min': None, 'edad_max': None, 'valor_max_euros': None, 'posiciones': ['right-back'], 'nacionalidad': None, 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': None, 'liga': 'Eredivisie'}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=None
+[A1][Valor] max_detectado=None
+[A1][Posicion] detectadas=['right-back']
+[A1][Posicion] filtro: 5000 -> 466
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=['Eredivisie']
+[A1][Liga] filtro: 466 -> 33
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 33 -> 33
+Agente 1: Filtrados 33 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 33
+Minutos requeridos: 200
+31
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1232, 3840)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 3/12] ---
+Query: Mediocentro defensivo de la liga portuguesa con alta capacidad de recuperación de balón.
+
+[SUPERVISOR] domain=ok lang=es query_es=Mediocentro defensivo de la liga portuguesa con alta capacidad de recuperación de balón....
+{"ts": "2026-05-19T21:32:53.188656Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Mediocentro defensivo de la liga portuguesa con alta capacidad de recuperación de balón.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_max': None, 'valor_max_euros': None, 'posiciones': ['defensive midfield'], 'edad_min': None, 'nacionalidad': None, 'liga': 'Liga Portugal', 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': None}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=None
+[A1][Valor] max_detectado=None
+[A1][Posicion] detectadas=['defensive midfield']
+[A1][Posicion] filtro: 5000 -> 762
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=['Liga Portugal']
+[A1][Liga] filtro: 762 -> 22
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 22 -> 22
+Agente 1: Filtrados 22 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 22
+Minutos requeridos: 200
+19
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1243, 3840)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 4/12] ---
+Query: Defensa central menor de 23 años de la liga suiza con buena salida de balón.
+
+[SUPERVISOR] domain=ok lang=es query_es=Defensa central menor de 23 años de la liga suiza con buena salida de balón....
+{"ts": "2026-05-19T21:34:26.614425Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Defensa central menor de 23 años de la liga suiza con buena salida de balón.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_max': 23, 'valor_max_euros': None, 'posiciones': ['centre-back'], 'edad_min': None, 'nacionalidad': None, 'liga': 'Super League (Suiza)', 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': None}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=23
+[A1][Edad] <= 23: 5000 -> 2220
+[A1][Valor] max_detectado=None
+[A1][Posicion] detectadas=['centre-back']
+[A1][Posicion] filtro: 2220 -> 377
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=[]
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 377 -> 377
+Agente 1: Filtrados 377 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 377
+Minutos requeridos: 200
+327
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1227, 3840)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 5/12] ---
+Query: Extremo izquierdo de la Championship inglesa con buen 1vs1 y capacidad de desborde.
+
+[SUPERVISOR] domain=ok lang=es query_es=Extremo izquierdo de la Championship inglesa con buen 1vs1 y capacidad de desborde....
+{"ts": "2026-05-19T21:35:08.194552Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Extremo izquierdo de la Championship inglesa con buen 1vs1 y capacidad de desborde.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_min': None, 'edad_max': None, 'valor_max_euros': None, 'posiciones': ['left winger'], 'nacionalidad': None, 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': None, 'liga': 'Championship'}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=None
+[A1][Valor] max_detectado=None
+[A1][Posicion] detectadas=['left winger']
+[A1][Posicion] filtro: 5000 -> 431
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=['Championship']
+[A1][Liga] filtro: 431 -> 31
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 31 -> 31
+Agente 1: Filtrados 31 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 31
+Minutos requeridos: 200
+30
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1234, 3839)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 6/12] ---
+Query: Pivote de la liga turca con buena salida de balón y valor inferior a 10 millones.
+
+[SUPERVISOR] domain=ok lang=es query_es=Pivote de la liga turca con buena salida de balón y valor inferior a 10 millones....
+{"ts": "2026-05-19T21:35:49.353896Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Pivote de la liga turca con buena salida de balón y valor inferior a 10 millones.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_max': None, 'valor_max_euros': 10000000.0, 'posiciones': ['defensive midfield'], 'edad_min': None, 'nacionalidad': None, 'liga': 'Super Lig (Turquía)', 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': None}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=None
+[A1][Valor] max_detectado=10000000.0
+[A1][Valor] <= 10000000.0: 5000 -> 4405
+[A1][Posicion] detectadas=['defensive midfield']
+[A1][Posicion] filtro: 4405 -> 494
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=[]
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 494 -> 494
+Agente 1: Filtrados 494 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 494
+Minutos requeridos: 200
+444
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1232, 3840)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 7/12] ---
+Query: Delantero sub-21 de ligas nórdicas con buen pressing y más de 0.40 goles por partido.
+
+[SUPERVISOR] domain=ok lang=es query_es=Delantero sub-21 de ligas nórdicas con buen pressing y más de 0.40 goles por partido....
+{"ts": "2026-05-19T21:36:34.102770Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Delantero sub-21 de ligas nórdicas con buen pressing y más de 0.40 goles por partido.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_max': 21, 'ligas': None, 'edad_min': None, 'valor_max_euros': None, 'posiciones': ['centre-forward', 'forward'], 'nacionalidad': None, 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': None}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=21
+[A1][Edad] <= 21: 5000 -> 1626
+[A1][Valor] max_detectado=None
+[A1][Posicion] detectadas=['centre-forward', 'forward']
+[A1][Posicion] filtro: 1626 -> 199
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=None
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 199 -> 199
+Agente 1: Filtrados 199 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 199
+Minutos requeridos: 200
+168
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1233, 3840)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 8/12] ---
+Query: Central zurdo de Sudamérica con más de 1.90 m, dominante en duelos aéreos y experiencia internacional.
+
+[SUPERVISOR] domain=ok lang=es query_es=Central zurdo de Sudamérica con más de 1.90 m, dominante en duelos aéreos y experiencia internacional....
+{"ts": "2026-05-19T21:37:21.470830Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Central zurdo de Sudamérica con más de 1.90 m, dominante en duelos aéreos y experiencia internacional.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_min': None, 'edad_max': None, 'valor_max_euros': None, 'posiciones': ['centre-back'], 'nacionalidad': None, 'pie_dominante': 'left', 'altura_min_cm': 190, 'altura_max_cm': None, 'contrato_max_anios': None, 'liga': None}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=None
+[A1][Valor] max_detectado=None
+[A1][Posicion] detectadas=['centre-back']
+[A1][Posicion] filtro: 5000 -> 975
+[A1][Pie] detectado=left
+[A1][Pie] left/both: 975 -> 245
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=1.9 max=None
+[A1][Altura] >= 1.9: 245 -> 77
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=None
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 77 -> 77
+Agente 1: Filtrados 77 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 77
+Minutos requeridos: 200
+71
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1228, 3840)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 9/12] ---
+Query: Interior ofensivo de segunda división francesa con buen último pase, alta producción de xA y contrato < 2 años.
+
+[SUPERVISOR] domain=ok lang=es query_es=Interior ofensivo de segunda división francesa con buen último pase, alta producción de xA y contrato < 2 años....
+{"ts": "2026-05-19T21:37:58.686517Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Interior ofensivo de segunda división francesa con buen último pase, alta producción de xA y contrato < 2 años.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_max': None, 'valor_max_euros': None, 'posiciones': ['attacking midfield'], 'edad_min': None, 'nacionalidad': None, 'liga': 'LaLiga2', 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': 2.0}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=None max=None
+[A1][Valor] max_detectado=None
+[A1][Posicion] detectadas=['attacking midfield']
+[A1][Posicion] filtro: 5000 -> 461
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=2.0
+[A1][Contrato][DEBUG] contrato_max=2.0
+[A1][Contrato][DEBUG] sample parsed contract_details/años_contrato (not null): [{'contract_details': '{"joined": "01/07/2024", "contract_expires": "30/06/2030", "last_renewal": "16/01/2026"}', 'años_contrato': 4.117808219178082}, {'contract_details': '{"joined": "16/07/2024", "contract_expires": "30/06/2028", "last_renewal": "23/12/2024"}', 'años_contrato': 2.117808219178082}, {'contract_details': '{"joined": "16/07/2025", "contract_expires": "30/06/2029", "last_renewal": null}', 'años_contrato': 3.117808219178082}]
+[A1][Contrato][DEBUG] sample unparsed contract_details/años_contrato (null): [{'contract_details': '{"joined": "01/07/2025", "contract_expires": "-", "last_renewal": null}', 'años_contrato': None}, {'contract_details': '{"joined": "12/01/2026", "contract_expires": "-", "last_renewal": null}', 'años_contrato': None}, {'contract_details': '{"joined": "17/01/2024", "contract_expires": "-", "last_renewal": "02/01/2023"}', 'años_contrato': None}]
+[A1][Contrato] < 2.0: 461 -> 226
+[A1][Liga] detectadas=['LaLiga2']
+[A1][Liga] filtro: 226 -> 4
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 4 -> 4
+Agente 1: Filtrados 4 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 4
+Minutos requeridos: 200
+4
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1243, 3840)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 10/12] ---
+Query: Reemplazo para Rodri: 22-27 años, posicionamiento defensivo, pases progresivos, < 35 millones.
+
+[SUPERVISOR] domain=ok lang=es query_es=Reemplazo para Rodri: 22-27 años, posicionamiento defensivo, pases progresivos, < 35 millones....
+{"ts": "2026-05-19T21:39:46.104143Z", "event": "agent0_init", "base": "data_local/processed/indices/current"}
+[A1] query='Reemplazo para Rodri: 22-27 años, posicionamiento defensivo, pases progresivos, < 35 millones.' rows_iniciales=5000
+[A1][LLM] criterios extraídos: {'edad_min': 22, 'edad_max': 27, 'valor_max_euros': 35000000.0, 'posiciones': ['defensive midfield'], 'nacionalidad': None, 'pie_dominante': None, 'altura_min_cm': None, 'altura_max_cm': None, 'contrato_max_anios': None, 'ligas': None}
+[A1][DEBUG] columnas DF: ['nombre', 'nacionalidad', 'equipo', 'liga', 'pais', 'temporada', 'main_position', 'other_positions', 'foot', 'age', 'height', 'market_value', 'contract_details', 'market_value_evolution', 'transfer_history', 'estadísticas', 'liga_stats', 'temporada_stats', 'rasgos_jugador']
+[A1][Edad] min=22 max=27
+[A1][Edad] <= 27: 5000 -> 3783
+[A1][Edad] >= 22: 3783 -> 2391
+[A1][Valor] max_detectado=35000000.0
+[A1][Valor] <= 35000000.0: 2391 -> 2276
+[A1][Posicion] detectadas=['defensive midfield']
+[A1][Posicion] filtro: 2276 -> 252
+[A1][Pie] detectado=None
+[A1][Nacionalidad] detectada=None
+[A1][Altura] min=None max=None
+[A1][Contrato] max_detectado=None
+[A1][Liga] detectadas=None
+[A1][PaisLiga] sin targets detectados: no se filtra por país
+[A1][PaisLiga] detectados=[]
+[A1][PaisLiga] filtro: 252 -> 252
+Agente 1: Filtrados 252 jugadores tras aplicar filtros clave.
+ANTES del filtro por minutos: 252
+Minutos requeridos: 200
+242
+[charts] radar collage OK: /tmp/radars_collage.png
+[Agente4] build_pizza_collage start · n=3 · layout=column
+[Agente4] collage redimensionado a: (1232, 3840)
+[Agente4] collage guardado en: /tmp/profiles_comparison.jpg
+[charts] pizza collage OK: /tmp/profiles_comparison.jpg
+[charts] chart_paths finales: ['/tmp/radars_collage.png', '/tmp/profiles_comparison.jpg']
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/radars_collage.png
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+[telegram] enviando imagen: /tmp/profiles_comparison.jpg
+[telegram] respuesta Telegram 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 11/12] ---
+Query: Búscame a LeBron James
+
+[SUPERVISOR] domain=fin lang=es query_es=Búscame a LeBron James...
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------
+
+--- [PREGUNTA 12/12] ---
+Query: Búscame un portero que marque más de 20 goles por temporada
+
+[SUPERVISOR] domain=fin lang=es query_es=Búscame un portero que marque más de 20 goles por temporada...
+[telegram] respuesta texto 400: {"ok":false,"error_code":400,"description":"Bad Request: chat not found"}
+----------------------------------------

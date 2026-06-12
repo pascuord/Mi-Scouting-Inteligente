@@ -21,6 +21,16 @@ El pipeline completo:
 
 ---
 
+## 📚 Documentación Adicional
+
+Para facilitar la evaluación académica y el mantenimiento técnico del proyecto, se han incorporado las siguientes guías detalladas:
+
+*   **[📐 Especificación Arquitectónica (ARCHITECTURE.md)](ARCHITECTURE.md)**: Detalle del flujo multiagente (LangGraph), formulación matemática del score, espacio vectorial RAG (FAISS/E5) y estructura del pipeline de datos.
+*   **[🚀 Guía de Despliegue (DEPLOYMENT.md)](DEPLOYMENT.md)**: Instrucciones paso a paso para la instalación de dependencias, configuración de entornos (`.env`) y arranque del bot y del módulo ETL.
+*   **[🤝 Guía de Contribución (CONTRIBUTING.md)](CONTRIBUTING.md)**: Estándares de calidad de código, formato de commits y flujo de trabajo para colaborar en el repositorio.
+
+---
+
 ## 🗂️ Estructura del repositorio
 
 ```text
@@ -39,6 +49,9 @@ proyectosjg/
 ├── docker-compose.yml    # Orquestación de servicios
 ├── Dockerfile            # Imagen base
 ├── pyproject.toml        # Dependencias
+├── ARCHITECTURE.md       # Detalle teórico, matemático y de flujos (Nuevo)
+├── DEPLOYMENT.md         # Guía de instalación y despliegue (Nuevo)
+├── CONTRIBUTING.md       # Guías de contribución y Git workflow (Nuevo)
 └── README.md             # Este archivo
 ```
 

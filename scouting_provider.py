@@ -32,16 +32,17 @@ if _SRC not in sys.path:
     sys.path.insert(0, _SRC)
 
 
-# ── Precios por millón de tokens (USD) — actualizado mayo 2026 ─────────────
+# ── Precios por millón de tokens (USD) — actualizado junio 2026 ────────────
 # Fuente: páginas de pricing de OpenAI y Groq.
 # Estructura: { modelo: (precio_input_por_1M, precio_output_por_1M) }
 MODEL_PRICING = {
     # OpenAI
     "gpt-4o-mini":   (0.15,   0.60),
+    "gpt-5.4-mini":  (0.75,   4.50),
     "gpt-4o":        (2.50,  10.00),
-    "gpt-5.5":       (1.00,   2.00),    # Precio estimado; ajustar cuando sea público
+    "gpt-5.5":       (5.00,  30.00),
     # Groq (modelos open-source, precios Groq API)
-    "openai/gpt-oss-120b":      (0.30, 0.80),
+    "openai/gpt-oss-120b":      (0.15, 0.60),
     "llama-3.3-70b-versatile":  (0.59, 0.79),
 }
 

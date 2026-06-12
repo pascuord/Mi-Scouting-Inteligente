@@ -11,10 +11,10 @@ description: "Benchmark multiagente ScoutingInteligente — TFM UNIR"
 # Ambos apuntan al mismo script Python; la diferenciación se hace vía `config`.
 providers:
   - id: file://scouting_provider.py
-    label: "OpenAI gpt-4o-mini"
+    label: "OpenAI gpt-5.4-mini"
     config:
       provider: openai
-      model: gpt-4o-mini
+      model: gpt-5.4-mini
 
   - id: file://scouting_provider.py
     label: "Groq gpt-oss-120b"

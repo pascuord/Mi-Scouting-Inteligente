@@ -57,97 +57,105 @@ proyectosjg/
 
 ---
 
-## ⚙️ Requisitos
-- **Docker Desktop** (Windows requiere WSL2 habilitado).  
-- Claves necesarias:
-  - `OPENAI_API_KEY`  
-  - `TELEGRAM_BOT_TOKEN`  
+## 🐳 Despliegue y Garantía de Reproducibilidad con Docker
+
+Para garantizar la **reproducibilidad académica y técnica** de este Trabajo Fin de Máster (TFM), todo el entorno del sistema de scouting está encapsulado mediante contenedores utilizando **Docker Compose**. 
+
+### 🛡️ ¿Cómo garantiza Docker la reproducibilidad?
+1. **Entorno Aislado e Idéntico**: Se utiliza una imagen base estandarizada de Python 3.11-slim, eliminando discrepancias debidas al sistema operativo anfitrión (Linux, macOS o Windows/WSL2).
+2. **Compilación de Dependencias Complejas**: Librerías como `FAISS` (para indexación y búsqueda vectorial rápida) se compilan y configuran dentro del contenedor sin necesidad de configurar compiladores C++ locales.
+3. **Generación Automatizada de Gráficos (Chrome Headless)**: Los módulos de generación visual (radares comparativos y diagramas pizza mediante `Plotly` y `Kaleido`) requieren binarios del sistema de Google Chrome. El `Dockerfile` instala automáticamente Chrome estable y todas sus dependencias gráficas (`libnss3`, `libxss1`, etc.), asegurando que los reportes visuales se generen correctamente en entornos headless sin configuraciones manuales adicionales.
+4. **Persistencia Controlada (Volúmenes)**: Se definen rutas mapeadas exactas para la persistencia del histórico del bot (`last_update_id.txt`), datos de jugadores indexados e históricos de caché, garantizando que el estado del sistema persista entre reinicios.
 
 ---
 
-## 🚀 Configuración rápida
+### 📋 Requisitos Previos
+Antes de iniciar el despliegue, asegúrate de cumplir con lo siguiente:
+- **Docker Engine** (`v24.0` o superior) e **instalación de Docker Compose** (`v2.20` o superior).
+- Claves de APIs y tokens necesarios (se configuran en el `.env`):
+  - `TELEGRAM_BOT_TOKEN` (obtenido desde `@BotFather`).
+  - `OPENAI_API_KEY` (si se usa OpenAI) o `GROQ_API_KEY` (si se usa Groq).
 
-1. **Clonar repo y entorno**
+---
+
+### 🚀 Guía de Puesta en Marcha Paso a Paso
+
+#### 1. Clonación del Repositorio e Inicialización del Entorno
+Clona el proyecto y crea tu archivo de configuración `.env` a partir de la plantilla predeterminada:
 ```bash
-   git clone https://github.com/Scouting-Inteligente-Bot/ScoutingInteligenteBot.git
-   cd ScoutingInteligenteBot
-   cp .env.example .env
-   # editar .env con tus claves
+git clone https://github.com/Scouting-Inteligente-Bot/ScoutingInteligenteBot.git
+cd ScoutingInteligenteBot
+cp .env.example .env
 ```
-2. **Construir imágenes**
+> [!TIP]
+> Abre el archivo `.env` en un editor de texto y completa las credenciales requeridas. Para obtener detalles adicionales sobre cada variable de entorno, consulta la [Guía de Despliegue Detallada (DEPLOYMENT.md)](DEPLOYMENT.md#-configuracion-del-entorno-env).
+
+#### 2. Construcción del Contenedor
+Descarga las imágenes base y construye el entorno local de dependencias:
 ```bash
-   docker compose build --no-cache --pull
+docker compose build --no-cache --pull
 ```
 
-3. **Estructura de datos (no versionada)**
+#### 3. Carga y Procesamiento de Datos (Flujo ETL & Indexación)
+Para que el bot multiagente pueda recuperar candidatos mediante RAG, se necesitan los datos e índices vectoriales en la carpeta física de persistencia. Tienes dos opciones para levantarlos:
 
-```text
-data/
-├─ processed/
-│  ├─ merged/
-│  │  ├─ db_jugadores.json
-│  │  └─ db_porteros.json
-│  └─ indices/
-│     ├─ faiss_jugadores.index
-│     ├─ faiss_porteros.index
-│     ├─ metadata_jugadores.json
-│     └─ metadata_porteros.json
+* **Opción A (Recomendada para reproducibilidad total): Ejecución del Pipeline ETL Completo**
+  Si deseas realizar toda la extracción, limpieza, consolidación e indexación vectorial desde las fuentes originales:
+  ```bash
+  docker compose run --rm etl python -m scouting.etl.main_etl
+  ```
+  > [!IMPORTANT]
+  > Para extraer datos actualizados desde FotMob, debes actualizar de forma manual la variable `X_MAS_TOKEN` en tu `.env`. Ver detalles sobre [cómo obtener el token de FotMob](#obtencion-del-token-de-fotmob-para-recolectar-datos).
+  >
+  > *Atajos del script ETL:* Puedes saltar fases añadiendo banderas al script. Por ejemplo, si deseas omitir la descarga externa de Fotmob y Transfermarkt porque ya tienes los `.json` en bruto en `data/` y solo quieres hacer el merge e indexado:
+  > ```bash
+  > docker compose run --rm etl python -m scouting.etl.main_etl --skip-fotmob --skip-tm
+  > ```
+
+* **Opción B (Indexación Directa): Generación de Índices FAISS sobre Datos Existentes**
+  Si ya tienes los archivos consolidados de base de datos (`db_jugadores.json` y `db_porteros.json`) bajo el directorio `data_local/processed/merged/`, puedes ejecutar directamente la vectorización para crear los índices FAISS:
+  ```bash
+  docker compose run --rm etl python -m scouting.etl.vector_store_indexing
+  ```
+  
+  **Estructura de archivos esperada en el host para esta fase:**
+  ```text
+  data/
+  └─ processed/
+     └─ indices/
+        └─ current/
+           ├─ faiss_jugadores.index      # Base vectorial de jugadores
+           ├─ faiss_porteros.index       # Base vectorial de porteros
+           ├─ metadata_jugadores.json    # Metadatos del RAG
+           └─ metadata_porteros.json     # Metadatos del RAG
+  ```
+
+#### 4. Lanzamiento del Bot de Telegram
+Una vez completado el procesamiento/indexado y con los archivos en su lugar, levanta el servicio del bot de Telegram en segundo plano:
+```bash
+docker compose up -d bot
+```
+
+Comprueba el correcto arranque del bot y visualiza los logs de ejecución en tiempo real:
+```bash
+docker compose logs -f bot
 ```
 
 ---
 
+### 🔑 Obtención del Token de FotMob para recolectar datos
+Si vas a realizar la recolección completa en el paso ETL (Opción A):
+1. Entra en [FotMob](https://www.fotmob.com) desde tu navegador web.
+2. Abre las herramientas de desarrollo de tu navegador (`F12` o Clic Derecho -> Inspeccionar).
+3. Ve a la pestaña **Network** (Red) y filtra los resultados por **Fetch/XHR**.
+4. Realiza alguna acción que consulte métricas de un jugador (ej: ver su perfil).
+5. Selecciona la petición de red (ej: `profile`) y copia el valor del encabezado de solicitud `x-mas` (o `X-Mas`).
+6. Pégalo en tu archivo `.env` como `X_MAS_TOKEN=tu_valor_aqui` (sin comillas).
 
-## ETL (Extract, Transform, Load)
-Se generan las bases de datos de jugadores de fotmob y de transfermarkt.
+---
 
-### Collect
-En esta fase del ETL se recolectan los datos de las distintas bases, en nuestro caso se usa Fotmob para la extracción de estadísticas de los jugadores y
-transfermarkt para información contractual, trayectoria, históricos y valor del jugador
-
-Para generar la de FotMob hacemos: 
-```bash
-docker compose run --rm etl python -m scouting.etl.collect_fotmob
-```
-El caso de FotMob tiene otra particularidad y es que para hacer uso de sus APIs para obtener los datos de estadísticas de los jugadores tenemos que tener actualizada la variable `X_MAS_TOKEN` que se encuentra en `.env`, para obtener el valor actual hay que ir a fotmob, se coge un ejemplo cualquiera, como Dean Huijsen, y se hace click derecho en donde sea->Inspeccionar->Network->Fetch/XHR y cuando hagamos click en cualquier zona, por ejemplo nombre del jugador, en metrics aparecerá currency, clicamos y bajamos entre esas variables, hasta la última que se llama X-Mas, entonces copiamos ese código, y actualizamos nuestra variable `X_MAS_TOKEN` en `.env` sin usar comillas ni nada.
-**ESTO ES INDISPENSABLE HACERLO CADA VEZ QUE SE QUIERA ACTUALIZAR LA BASE DE FOTMOB**
-
-Para transfermarkt:
-
-```bash
-docker compose run --rm etl python -m scouting.etl.collect_transfermarkt
-```
-
-### Merge
-Para poder usar estos datos, tenemos hacer el merge de estas dos bases, para tener nuestra db combinada y separada en jugadores y porteros:
-
-
-```bash
-    docker compose run --rm etl python -m scouting.etl.merge
-```
-
-### Indexado (ETL)
-Genera FAISS y metadatos desde data/processed/merged hacia data/processed/indices/current:
-```bash
-    docker compose run --rm etl python -m scouting.etl.vector_store_indexing
-```
-
-Salida esperada:
-    data/processed/indices/current/
-        faiss_jugadores.index
-        faiss_porteros.index
-        metadata_jugadores.json
-        metadata_porteros.json
-
-### Main_etl
-Aqui tenemos la ejecución del main_etl.py completo, aunque con algunos atajos por si no queremos ejecutar todo 
-```bash
-    docker compose run --rm etl python -m scouting.etl.main_etl
-```
-
-Tenemos estos 3 atajos para añadir al comando previo por si quisieramos saltarnos alguna fase: --skip-fotmob --skip-tm --skip-merge 
-Con estos podremos saltarnos la recolección de fotmob o la de transfermarkt, ambas, y además también el merge de estas y pasar directo al indexado, o bien podemos hacerlo entero.   
-
-Para entender cómo se construye la base de datos combinada a partir de **FotMob** y **Transfermarkt**, se incluye un esquema visual del pipeline ETL:
+### 📊 Flujo del Pipeline ETL
+El siguiente diagrama detalla cómo se extraen y fusionan los datos de **FotMob** (estadísticas deportivas de rendimiento) y **Transfermarkt** (información contractual y de mercado) para alimentar los índices del RAG:
 
 <p align="center">
   <img src="figuras/diagrama.png" alt="ETL pipeline" width="700"/>
@@ -471,60 +479,12 @@ El flujo multiagente completo —desde la query hasta la explicación y gráfico
 
 ---
 
-## Ejecutar el bot
-```bash
-    docker compose up -d bot
-    docker compose logs -f bot
-```
-
-- El bot usa polling con offset, guardado en /data/last_update_id.txt.
-
-- En Telegram, envía consultas como:
-
-> *“Extremo izquierdo joven, habilidoso, con regate y gol. Precio máximo 500k”*  
-
-## Variables de Entorno
-
-- `OPENAI_API_KEY` — clave de OpenAI
-- `TELEGRAM_BOT_TOKEN` — token del bot
-- `OPENAI_MODEL_SUPERVISOR` — default: `gpt-4o`
-- `INDICES_DIR` — default: `/data/processed/indices/current`
-- `KAL_CHROME_PATH` — default: `/usr/bin/google-chrome-stable` (necesario para PNG)
-
-## Troubleshooting
-- **No genera PNG / error Kaleido**
-  Asegúrate de que el contenedor bot tiene Chrome:
-```bash
-   docker compose exec bot sh -lc 'which google-chrome-stable || which google-chrome || which chromium || which chromium-browser'
-```
-Si no existe, reconstruye la imagen del bot con el bloque de instalación de Chrome en su Dockerfile.
-
-- **El bot repite el mismo mensaje**
-    Verifica que existe `/data/last_update_id.txt` y que el volumen `./data:/data` está montado.
-
-- **No filtra nada**
-    Revisa que `metadata_*.json` tengan estructura con info completo (posición, pie, altura, valor, contrato…).
-
-- **WSL/Engine colgado (windows)**
-```bash 
-    wsl --shutdown
-    #y vuelve a abrir Docker Desktop.
-```
-
----     
-
-## Seguridad
-- No se *commitean* `.env` ni `data/`.
-
----
-
 ## 🖼️ Demo del bot
 Ejemplo real de interacción vía Telegram con el bot de scouting:
 
 <p align="center">
   <img src="figuras/telegram_output.png" alt="Interfaz real de Telegram con la explicación del Agente 3" width="700"/>
 </p>
-
 
 <p align="center">
   <img src="figuras/radar_comparativo.png" alt="Radar comparativo" width="700"/>
@@ -538,13 +498,37 @@ En la demo se observa cómo una consulta en lenguaje natural se transforma en:
 1. **Explicación razonada** de los 3 jugadores más relevantes.  
 2. **Gráficos comparativos** (radar y perfiles tipo player radar) generados automáticamente.  
 
-## 🚀 Puesta en marcha rápida (Docker)
+---
 
-1. **Variables de entorno:**
-   Copia el archivo `.env.example`, renómbralo a `.env` y añade tus claves de API (Groq, Telegram).
-2. **Datos iniciales:**
-   Descarga la carpeta `data/` comprimida (solicítala al administrador) y descomprímela en la raíz del proyecto.
-3. **Construir la imagen (solo la primera vez):**
-   `sudo docker compose build --no-cache app-image`
-4. **Arrancar el bot en segundo plano:**
-   `sudo docker compose up -d bot`
+## 🛠️ Resolución de Problemas (Troubleshooting)
+
+### 1. Error de Renderizado de Gráficos (Kaleido / Chrome headless)
+Si los logs del bot muestran errores al generar los archivos PNG de los radares comparativos:
+- Comprueba si el ejecutable de Chrome está en la ruta correcta en el contenedor:
+  ```bash
+  docker compose exec bot sh -lc 'which google-chrome-stable'
+  ```
+- El `Dockerfile` ya incluye la instalación automatizada del navegador y las librerías necesarias. Si realizas cambios en el entorno de visualización, asegúrate de reconstruir la imagen con:
+  ```bash
+  docker compose build --no-cache
+  ```
+
+### 2. El Bot de Telegram responde dos veces o repite mensajes
+- El bot utiliza *polling* de Telegram con offset de lectura.
+- El ID del último mensaje procesado se guarda en `/data/last_update_id.txt`.
+- Asegúrate de que el volumen `./data:/data` tiene permisos de escritura en tu sistema operativo host, permitiendo al contenedor guardar este archivo de control.
+
+### 3. Error `FileNotFoundError` en los Índices FAISS
+- Si al arrancar el bot muestra que no encuentra los archivos `faiss_jugadores.index`, verifica que hayas ejecutado el indexador (`scouting.etl.vector_store_indexing`) o que hayas copiado correctamente los datos preexistentes en la carpeta local `data/processed/indices/current/`.
+
+### 4. WSL / Docker Desktop colgado (en Windows)
+Si experimentas bloqueos en la ejecución de contenedores:
+```bash 
+wsl --shutdown
+```
+Y vuelve a abrir Docker Desktop.
+
+---
+
+## 🔒 Seguridad
+- El archivo `.env` con credenciales privadas y la carpeta de datos en bruto/procesados `data/` están excluidos del control de versiones en el `.gitignore`.

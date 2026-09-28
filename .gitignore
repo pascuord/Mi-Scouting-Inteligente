@@ -6,14 +6,21 @@ venv/
 
 # Datos y modelos pesados (se comparten por fuera o se regeneran)
 data/
+data_local/
 models_cache/
 *.index
 *.json
-!pyproject.toml
+
+# Salidas generadas (logs de ejecución)
+*.log
+logs_completos_tfm.txt
 
 # Python y Sistema
 __pycache__/
 *.py[cod]
+*.egg-info/
+build/
+dist/
 .DS_Store
 .idea/
-.vscode/data_local/
+.vscode/
